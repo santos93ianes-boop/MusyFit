@@ -70,3 +70,12 @@ O MusyFit é um app de apoio ao treino. Não faz diagnóstico, não trata lesõe
 
 ## V7 — Ícone premium
 O ícone do launcher agora usa a arte premium aprovada em `assets/musyfit_app_icon.png`, redimensionada em alta qualidade para todas as densidades Android pelo workflow do GitHub.
+
+## MusyFit V8
+- Somente academia.
+- Fichas por objetivo/modalidade e nível.
+- 6 exercícios principais no Iniciante, 7 no Intermediário, 8 no Avançado e 9 no Experiente, além de aquecimento/finalização quando aplicável.
+- Aquecimento, treino principal, condicionamento e mobilidade em blocos separados.
+- Ciclos de 4 semanas para Iniciante e 6 semanas para demais níveis.
+- Cronômetro por exercício, substituição de máquinas e histórico mantidos.
+- Tela Evolução com safe-area Android e mapa corporal vetorial revisado.

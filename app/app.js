@@ -1,18 +1,18 @@
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
-const STORAGE='musyfit.v6';
+const STORAGE='musyfit.v8';
 const defaults={
-  version:6,onboard:false,name:'Atleta',gender:'Homem',age:30,level:'Iniciante',goal:'Ganhar massa',days:4,place:'Academia',minutesTarget:50,
+  version:8,onboard:false,name:'Atleta',gender:'Homem',age:30,level:'Iniciante',goal:'Ganhar massa',days:4,place:'Academia',minutesTarget:50,
   equipment:['Máquinas','Cabos','Halteres','Barra'],weight:75,height:175,waist:85,chest:95,arm:32,hip:95,thigh:55,
   workouts:0,records:0,totalMinutes:0,streak:0,tab:'home',weeklyNotifications:true,restDefault:90,
-  history:[],assessments:[],completed:{},seriesProgress:{},loads:{},favorites:[],coachHistory:[],apiUrl:'',lastWorkoutDate:null,activeWorkout:null,activeRest:null
+  history:[],assessments:[],completed:{},seriesProgress:{},loads:{},favorites:[],coachHistory:[],apiUrl:'',lastWorkoutDate:null,activeWorkout:null,activeRest:null,cycleStartWorkouts:0,cycleLength:4
 };
-let previousKey=['musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].find(k=>localStorage.getItem(k));
+let previousKey=['musyfit.v7','musyfit.v6','musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].find(k=>localStorage.getItem(k));
 let previous=previousKey?JSON.parse(localStorage.getItem(previousKey)||'{}'):{};
 let state=Object.assign({},defaults,JSON.parse(localStorage.getItem(STORAGE)||'{}'));
 if(!localStorage.getItem(STORAGE)&&previousKey){
- state=Object.assign({},defaults,previous,{version:6,place:'Academia',activeWorkout:null,activeRest:null,seriesProgress:{},completed:{}});
+ state=Object.assign({},defaults,previous,{version:8,place:'Academia',activeWorkout:null,activeRest:null,seriesProgress:{},completed:{},cycleStartWorkouts:previous.workouts||0});
 }
-state.version=6;state.place='Academia';state.equipment=['Máquinas','Cabos','Halteres','Barra'];
+state.version=8;state.place='Academia';state.equipment=['Máquinas','Cabos','Halteres','Barra'];
 state.seriesProgress=state.seriesProgress||{};
 const save=()=>localStorage.setItem(STORAGE,JSON.stringify(state));
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -79,60 +79,112 @@ const LIB=[
 ];
 
 function available(e){return true}
+const PREFS={
+ 'Ganhar massa':{
+  Pernas:['legpress','hack','ext','flex','hipthrust','rdl','abductor','calf','squat','seatedcurl','adductor'],
+  Peito:['chestpress','dbbench','incline','pecdeck','cablefly','bench'],
+  Costas:['pulldown','chestrow','row','onearm','straightpull','facepull','tbar'],
+  Ombros:['machinepress','lateral','reversefly','cablelat','ohp'],
+  Braços:['pushdown','curl','hammer','preacher','overtri','inclinecurl','barpushdown'],
+  Core:['abmachine','pallof','plank','cablecrunch','kneeraise']},
+ 'Força':{
+  Pernas:['squat','rdl','legpress','hack','hipthrust','flex','calf','ext'],
+  Peito:['bench','dbbench','incline','chestpress','cablefly'],
+  Costas:['row','pulldown','tbar','onearm','chestrow','facepull'],
+  Ombros:['ohp','machinepress','lateral','reversefly'],
+  Braços:['curl','pushdown','hammer','barpushdown','overtri'],
+  Core:['pallof','plank','cablecrunch','abmachine']},
+ 'Condicionamento':{
+  Pernas:['legpress','ext','flex','abductor','calf','hack','hipthrust','squat'],
+  Peito:['chestpress','pecdeck','dbbench','cablefly','incline'],
+  Costas:['pulldown','chestrow','row','facepull','straightpull'],
+  Ombros:['machinepress','lateral','reversefly','cablelat'],
+  Braços:['pushdown','curl','hammer','barpushdown','preacher'],
+  Core:['pallof','abmachine','plank','cablecrunch']},
+ 'Mobilidade':{
+  Pernas:['legpress','flex','ext','abductor','calf','hack'],Peito:['chestpress','pecdeck','cablefly'],Costas:['pulldown','chestrow','facepull'],Ombros:['machinepress','reversefly','lateral'],Braços:['pushdown','curl','hammer'],Core:['pallof','plank','abmachine']}
+};
+PREFS['Definição']=PREFS['Ganhar massa'];PREFS['Emagrecer']=PREFS['Condicionamento'];
 function scheme(){
- if(state.gender==='60+') return {sets:state.level==='Iniciante'?2:3,reps:'10–15',rest:90};
- if(state.goal==='Força') return {sets:4,reps:'4–6',rest:150};
- if(state.goal==='Ganhar massa'||state.goal==='Definição') return {sets:state.level==='Iniciante'?3:4,reps:'8–12',rest:90};
- if(state.goal==='Condicionamento'||state.goal==='Emagrecer') return {sets:3,reps:'12–15',rest:60};
- return {sets:3,reps:'10–15',rest:75};
+ const novice=state.level==='Iniciante', advanced=state.level==='Avançado'||state.level==='Experiente';
+ if(state.gender==='60+') return {sets:novice?2:3,reps:novice?'10–12':'10–15',rest:75};
+ if(state.goal==='Força') return {sets:novice?3:advanced?5:4,reps:novice?'6–8':'4–6',rest:advanced?180:150};
+ if(state.goal==='Ganhar massa') return {sets:novice?3:advanced?4:3,reps:'8–12',rest:advanced?105:90};
+ if(state.goal==='Definição') return {sets:novice?3:4,reps:'10–15',rest:75};
+ if(state.goal==='Condicionamento'||state.goal==='Emagrecer') return {sets:novice?2:3,reps:'12–15',rest:60};
+ return {sets:novice?2:3,reps:'10–15',rest:60};
 }
 function prescription(e,s){
  if(e.kind==='minutes'){
-  const mins=state.level==='Iniciante'?10:state.level==='Intermediário'?15:20;
+  let mins=state.level==='Iniciante'?8:state.level==='Intermediário'?12:15;
+  if(state.goal==='Condicionamento'||state.goal==='Emagrecer')mins+=5;
   return {sets:1,reps:`${mins} min`,rest:0};
  }
- if(e.kind==='seconds') return {sets:e.cat==='Mobilidade'?2:3,reps:e.cat==='Mobilidade'?'30–45 s':'30–60 s',rest:e.cat==='Mobilidade'?30:60};
+ if(e.kind==='seconds') return {sets:e.cat==='Mobilidade'?2:3,reps:e.cat==='Mobilidade'?'30–45 s':'30–60 s',rest:e.cat==='Mobilidade'?20:60};
+ if(e.cat==='Mobilidade') return {sets:2,reps:'10–12',rest:20};
  return {sets:s.sets,reps:s.reps,rest:s.rest};
-}
-function balancedExercises(cats,limit){
- const pools=cats.map(cat=>LIB.filter(e=>e.cat===cat));
- const picked=[];let round=0;
- while(picked.length<limit){
-  let added=false;
-  for(let i=0;i<cats.length&&picked.length<limit;i++){
-   const pool=pools[i]; if(!pool.length) continue;
-   const offset=(state.workouts+i)%pool.length;
-   const ex=pool[(round+offset)%pool.length];
-   if(ex&&!picked.some(x=>x.id===ex.id)){picked.push(ex);added=true;}
-  }
-  if(!added||round>20)break;round++;
- }
- return picked;
 }
 function splitFor(dayIndex=0){
  const splits={
   2:[['Pernas','Peito','Costas','Core'],['Pernas','Ombros','Braços','Core']],
   3:[['Peito','Ombros','Braços'],['Costas','Braços','Core'],['Pernas','Core']],
   4:[['Peito','Costas','Ombros'],['Pernas','Core'],['Peito','Costas','Braços'],['Pernas','Ombros','Core']],
-  5:[['Peito','Ombros','Braços'],['Costas','Braços'],['Pernas','Core'],['Peito','Costas','Ombros'],['Pernas','Core']],
-  6:[['Peito','Ombros','Braços'],['Costas','Braços'],['Pernas','Core'],['Peito','Ombros','Braços'],['Costas','Braços'],['Pernas','Core']],
-  7:[['Peito','Ombros','Braços'],['Costas','Braços'],['Pernas','Core'],['Peito','Costas'],['Ombros','Braços'],['Pernas','Core'],['Cardio','Mobilidade']]
+  5:[['Peito','Ombros','Braços'],['Costas','Braços'],['Pernas','Core'],['Peito','Costas','Ombros'],['Pernas','Braços','Core']],
+  6:[['Peito','Ombros','Braços'],['Costas','Braços'],['Pernas','Core'],['Peito','Ombros','Braços'],['Costas','Braços','Core'],['Pernas','Core']],
+  7:[['Peito','Ombros','Braços'],['Costas','Braços'],['Pernas','Core'],['Peito','Costas'],['Ombros','Braços'],['Pernas','Core'],['Cardio','Core']]
  };
  if(state.gender==='60+'){
-  const senior=[['Pernas','Core','Mobilidade'],['Peito','Costas','Cardio'],['Pernas','Ombros','Core'],['Costas','Braços','Mobilidade']];
+  const senior=[['Pernas','Core'],['Peito','Costas'],['Pernas','Ombros','Core'],['Costas','Braços']];
   return senior[dayIndex%senior.length];
  }
- const arr=splits[Math.max(2,Math.min(7,state.days))]||splits[4];
- return arr[dayIndex%arr.length];
+ const arr=splits[Math.max(2,Math.min(7,state.days))]||splits[4];return arr[dayIndex%arr.length];
 }
+function levelMainCount(){return state.level==='Iniciante'?6:state.level==='Intermediário'?7:state.level==='Avançado'?8:9}
+function findEx(id){return LIB.find(e=>e.id===id)}
+function preferredFor(cat){
+ if(cat==='Cardio')return ['treadmill','bike','elliptical'].map(findEx).filter(Boolean);
+ const g=PREFS[state.goal]||PREFS['Ganhar massa'];let ids=(g[cat]||[]).slice();
+ // Iniciante e 60+: máquinas e cabos primeiro; força avançada mantém compostos livres primeiro.
+ if((state.level==='Iniciante'||state.gender==='60+')&&state.goal!=='Força'){
+  ids.sort((a,b)=>{const ea=findEx(a),eb=findEx(b);const score=x=>/Máquina|Cabos|Cardio/.test(x?.eq||'')?0:1;return score(ea)-score(eb)});
+ }
+ return ids.map(findEx).filter(Boolean);
+}
+function pickMain(cats,count){
+ const mainCats=cats.filter(c=>c!=='Cardio'&&c!=='Mobilidade');const out=[];
+ if(!mainCats.length)return out;
+ // Garante pelo menos um exercício de cada grupo do título.
+ mainCats.forEach((cat,i)=>{const pool=preferredFor(cat);if(pool.length){const ex=pool[(state.workouts+i)%Math.min(pool.length,3)];if(ex&&!out.some(x=>x.id===ex.id))out.push(ex)}});
+ let round=0;
+ while(out.length<count&&round<20){
+  for(const cat of mainCats){if(out.length>=count)break;const pool=preferredFor(cat);const ex=pool[(round+state.workouts)%pool.length];if(ex&&!out.some(x=>x.id===ex.id))out.push(ex)}round++;
+ }
+ return out;
+}
+function blockify(e,block){return {...e,...prescription(e,scheme()),block}}
 function planFor(dayIndex=0){
- const s=scheme(),cats=splitFor(dayIndex),limit=state.level==='Iniciante'?6:7;
- const arr=balancedExercises(cats,limit).map(e=>({...e,...prescription(e,s)}));
- return {title:cats.join(' + '),items:arr};
+ const cats=splitFor(dayIndex),mainCats=cats.filter(c=>!['Cardio','Mobilidade'].includes(c));
+ const items=[];
+ // Aquecimento não é contado como exercício principal.
+ const warm=(state.gender==='60+'||state.goal==='Mobilidade')?findEx('bike'):findEx((dayIndex%2)?'bike':'treadmill');
+ if(warm)items.push({...blockify(warm,'Aquecimento'),sets:1,reps:state.level==='Iniciante'?'5–7 min':'7–10 min',rest:0});
+ const mainCount=levelMainCount();pickMain(mainCats,mainCount).forEach(e=>items.push(blockify(e,'Treino principal')));
+ // Condicionamento/Emagrecimento recebe cardio final; Core só entra quando previsto no split.
+ if((state.goal==='Condicionamento'||state.goal==='Emagrecer'||cats.includes('Cardio'))){const c=findEx(dayIndex%2?'elliptical':'bike');if(c&&!items.some(x=>x.id===c.id))items.push(blockify(c,'Condicionamento'))}
+ // Mobilidade sempre separada, 1 movimento; objetivo Mobilidade ou 60+ recebe 2.
+ const mobIds=mainCats.some(c=>['Peito','Costas','Ombros','Braços'].includes(c))?['mobilityshoulder','mobilityhips']:['mobilityhips','mobilityshoulder'];
+ const mobN=(state.goal==='Mobilidade'||state.gender==='60+')?2:1;mobIds.slice(0,mobN).map(findEx).filter(Boolean).forEach(e=>items.push(blockify(e,'Mobilidade / finalização')));
+ const title=mainCats.length?mainCats.join(' + '):(cats.includes('Cardio')?'Condicionamento':'Treino');
+ return {title,items,mainCount,cycleWeek:cycleInfo().week,cycleLength:cycleInfo().length};
+}
+function cycleInfo(){
+ const length=state.level==='Iniciante'?4:6;state.cycleLength=length;
+ const start=Number(state.cycleStartWorkouts||0),done=Math.max(0,state.workouts-start);const week=Math.min(length,Math.floor(done/Math.max(1,state.days))+1);
+ return {week,length,done};
 }
 function newWorkout(){
  const p=planFor(state.workouts);
- return {id:`w${Date.now()}`,dayIndex:state.workouts,startedAt:new Date().toISOString(),plan:p,completed:[],seriesProgress:{}};
+ return {id:`w${Date.now()}`,dayIndex:state.workouts,startedAt:new Date().toISOString(),plan:p,completed:[],seriesProgress:{},cycleWeek:cycleInfo().week};
 }
 function ensureWorkout(){if(!state.activeWorkout){state.activeWorkout=newWorkout();save()}return state.activeWorkout}
 function startWorkout(){ensureWorkout();state.tab='train';save();render()}
@@ -153,7 +205,7 @@ function setupProfile(){
  <div class="form2"><label>Nome<input class="input" id="name" value="${esc(state.name==='Atleta'?'':state.name)}"></label><label>Idade<input class="input" id="age" type="number" min="14" max="100" value="${state.age}"></label></div>
  <h2>Nível</h2><div>${['Iniciante','Intermediário','Avançado','Experiente'].map(v=>`<span class="pill ${state.level===v?'on':''}" data-level="${v}">${v}</span>`).join('')}</div>
  <h2>Objetivo</h2><div>${['Ganhar massa','Emagrecer','Definição','Força','Condicionamento','Mobilidade'].map(v=>`<span class="pill ${state.goal===v?'on':''}" data-goal="${v}">${v}</span>`).join('')}</div>
- <h2>Local de treino</h2><div><span class="pill on">Academia</span></div><p class="hint">MusyFit V6 foi otimizado exclusivamente para treinos em academia.</p>
+ <h2>Local de treino</h2><div><span class="pill on">Academia</span></div><p class="hint">MusyFit V8 foi otimizado exclusivamente para treinos em academia, com ciclos e fichas por objetivo.</p>
  <div class="form2"><label>Dias/semana<input class="input" id="days" type="number" min="2" max="7" value="${state.days}"></label><label>Min/treino<input class="input" id="mins" type="number" min="20" max="120" value="${state.minutesTarget}"></label></div>
  <button class="btn" id="go">CRIAR MEU PLANO</button></section></main>`;
  $$('#gender button').forEach(b=>b.onclick=()=>{state.gender=b.textContent;setupProfile()}); $$('[data-level]').forEach(b=>b.onclick=()=>{state.level=b.dataset.level;setupProfile()}); $$('[data-goal]').forEach(b=>b.onclick=()=>{state.goal=b.dataset.goal;setupProfile()});
@@ -161,7 +213,7 @@ function setupProfile(){
 }
 function home(){const p=planFor(state.workouts);const week=state.history.filter(h=>Date.now()-new Date(h.date).getTime()<7*864e5).length; const progress=Math.min(100,Math.round((state.workouts/20)*100)); shell(`
  <header class="row"><div><div class="brand">MUSY<b>FIT</b></div><h1>Olá, ${esc(state.name)} 👋</h1><p class="muted">Seu plano está pronto para hoje.</p></div><button class="iconbtn" id="bell">🔔</button></header>
- <section class="hero workoutHero"><span class="kicker">TREINO DE HOJE</span><h1>${p.title}</h1><p>${p.items.length} exercícios • ~${state.minutesTarget} min</p><button class="btn" id="begin">COMEÇAR TREINO ▶</button></section>
+ <section class="hero workoutHero"><div class="row"><span class="kicker">TREINO DE HOJE</span><span class="badge">Ciclo ${cycleInfo().week}/${cycleInfo().length}</span></div><h1>${p.title}</h1><p>${p.mainCount} exercícios principais + aquecimento/finalização • ~${state.minutesTarget} min</p><div class="bar"><i style="width:${cycleInfo().week/cycleInfo().length*100}%"></i></div><button class="btn" id="begin">COMEÇAR TREINO ▶</button></section>
  <section class="grid stats"><div class="stat">🔥<strong>${week}</strong><span>esta semana</span></div><div class="stat">🏆<strong>${state.records}</strong><span>recordes</span></div><div class="stat">⏱<strong>${fmtMin(state.totalMinutes)}</strong><span>treinadas</span></div><div class="stat">↗<strong>${progress}%</strong><span>jornada</span></div></section>
  <section class="card coach" id="ask"><div class="avatar">✦</div><div class="grow"><b>MUSY COACH AI</b><div class="muted">Pergunte sobre sua ficha e exercícios.</div></div><span>›</span></section>
  <section class="section"><div class="row"><h2>Próximos treinos</h2><button class="link" id="allPlans">ver plano</button></div><div class="scrollcards">${[0,1,2].map(i=>{let q=planFor(state.workouts+i);return `<div class="miniPlan"><b>${i===0?'Hoje':`Treino ${i+1}`}</b><span>${q.title}</span><small>${q.items.length} exercícios</small></div>`}).join('')}</div></section>
@@ -169,28 +221,18 @@ function home(){const p=planFor(state.workouts);const week=state.history.filter(
  $('#begin').onclick=startWorkout;$('#ask').onclick=()=>{state.tab='coach';save();render()};$('#allPlans').onclick=()=>{state.tab='train';save();render()};$('#bell').onclick=()=>toast(state.weeklyNotifications?'Resumo semanal ativo.':'Notificações semanais desativadas.');
 }
 function train(){
- const w=ensureWorkout(), p=w.plan, done=w.completed||[];
- shell(`<div class="row"><div><span class="kicker">SEU PLANO</span><h1>${p.title}</h1><p class="muted">${state.level} • ${state.goal} • ${state.place}</p></div><span class="badge">${done.length}/${p.items.length}</span></div><div class="card">${p.items.map((e,i)=>`<div class="exercise ${done.includes(e.id)?'done':''}"><div class="num">${done.includes(e.id)?'✓':i+1}</div><div class="grow"><b>${e.n}</b><div class="muted">${e.sets} × ${e.reps} • ${e.m}</div></div><button class="pill" data-ex="${e.id}">Abrir</button></div>`).join('')}</div><section class="section card"><b>Academia inteligente</b><p class="muted">Máquina ocupada? Abra o exercício e toque em <b>Substituir</b>. A troca fica salva neste treino.</p></section><section class="section"><button class="btn alt" id="finish">FINALIZAR TREINO</button></section>`);
+ const w=ensureWorkout(),p=w.plan,done=w.completed||[];
+ const blocks=['Aquecimento','Treino principal','Condicionamento','Mobilidade / finalização'];
+ const html=blocks.map(block=>{const arr=p.items.filter(x=>x.block===block);if(!arr.length)return '';return `<section class="workoutBlock"><div class="blockTitle"><span>${block}</span><small>${arr.length}</small></div><div class="card">${arr.map((e,i)=>{const global=p.items.indexOf(e);return `<div class="exercise ${done.includes(e.id)?'done':''}"><div class="num">${done.includes(e.id)?'✓':global+1}</div><div class="grow"><b>${e.n}</b><div class="muted">${e.sets} × ${e.reps} • ${e.m}</div></div><button class="pill" data-ex="${e.id}">Abrir</button></div>`}).join('')}</div></section>`}).join('');
+ shell(`<div class="row planHeader"><div><span class="kicker">SEU PLANO • CICLO ${cycleInfo().week}/${cycleInfo().length}</span><h1>${p.title}</h1><p class="muted">${state.level} • ${state.goal} • Academia</p></div><span class="badge">${done.length}/${p.items.length}</span></div><div class="cycleStrip"><span>Semana ${cycleInfo().week} de ${cycleInfo().length}</span><div class="bar"><i style="width:${cycleInfo().week/cycleInfo().length*100}%"></i></div></div>${html}<section class="section card"><b>Academia inteligente</b><p class="muted">Máquina ocupada? Abra o exercício e toque em <b>Substituir</b>. O MusyFit mantém a troca dentro do mesmo grupo e da mesma função do treino.</p></section><section class="section"><button class="btn alt" id="finish">FINALIZAR TREINO</button></section>`);
  $$('[data-ex]').forEach(b=>b.onclick=()=>exercise(b.dataset.ex));$('#finish').onclick=finishWorkout
 }
 let timerInt=null;
 function exercise(id){
- const w=ensureWorkout(), p=w.plan, e=p.items.find(x=>x.id===id); if(!e){state.tab='train';save();return render()}
- const load=state.loads[id]||{prev:0,current:0};
- const completedSeries=Math.min(Number(w.seriesProgress?.[id]||0),e.sets), finished=completedSeries>=e.sets;
- shell(`<button class="back" id="back">‹ Voltar</button><span class="kicker">EXERCÍCIO</span><h1>${e.n}</h1>
- <div class="exerciseVisual"><div class="bodyIcon">🏋️</div><div><b>${e.m}</b><p>${e.cue}</p><span class="badge">${e.eq}</span></div></div>
- <section class="card"><div class="row"><div><span class="muted">Séries</span><strong class="bigNumber">${e.sets}</strong></div><div><span class="muted">Repetições</span><strong class="bigNumber">${e.reps}</strong></div><div><span class="muted">Descanso</span><strong class="bigNumber">${e.rest}s</strong></div></div></section>
- <section class="section card seriesCard"><div class="row"><div><span class="kicker">PROGRESSO</span><h2>${finished?'Exercício concluído':`Série ${completedSeries+1} de ${e.sets}`}</h2></div><span class="badge">${completedSeries}/${e.sets}</span></div><div class="seriesDots">${Array.from({length:e.sets},(_,i)=>`<i class="${i<completedSeries?'on':''}">${i<completedSeries?'✓':i+1}</i>`).join('')}</div></section>
- <section class="section"><h2>Carga</h2><div class="grid"><div class="stat"><span>Anterior</span><strong>${load.prev||'—'}${load.prev?' kg':''}</strong></div><div class="stat"><span>Hoje</span><input class="loadInput" id="load" type="number" step="0.5" min="0" value="${load.current||load.prev||''}" placeholder="kg"></div></div><p class="hint">Aumente a carga apenas quando concluir as séries com técnica consistente. Progressão pequena é opcional.</p></section>
- <button class="btn" id="done" ${finished?'disabled':''}>${finished?'✓ EXERCÍCIO CONCLUÍDO':(e.rest>0?'✓ CONCLUIR SÉRIE E DESCANSAR':'✓ CONCLUIR EXERCÍCIO')}</button>
- <div id="timerBox">${e.rest>0?`<section class="section card restPreview"><div class="row"><div><span class="kicker">CRONÔMETRO DE DESCANSO</span><b>${e.rest} segundos</b></div><button class="pill" id="startRest">▶ Iniciar</button></div><p class="hint">Inicia automaticamente após cada série e continua correto se o app for minimizado.</p></section>`:`<section class="section card restPreview"><span class="kicker">SEM INTERVALO PROGRAMADO</span><p class="hint">Este exercício é contínuo. Conclua após cumprir o tempo indicado.</p></section>`}</div>
- <section class="section grid"><button class="btn alt" id="replace">⇄ SUBSTITUIR</button><button class="btn alt" id="how">? COMO FAZER</button></section>`);
- $('#back').onclick=()=>{state.tab='train';save();render()};
- $('#load').onchange=x=>{state.loads[id]={prev:load.prev||0,current:+x.target.value||0};save()};
- $('#done').onclick=()=>completeSeries(e,id); if($('#startRest'))$('#startRest').onclick=()=>startTimer(e.rest,id,e,false);
- $('#replace').onclick=()=>showReplacements(e); $('#how').onclick=()=>showGuide(e);
- if(state.activeRest?.workoutId===w.id&&state.activeRest?.exerciseId===id) resumeTimer(e,id);
+ const w=ensureWorkout(),p=w.plan,e=p.items.find(x=>x.id===id);if(!e){state.tab='train';save();return render()}
+ const load=state.loads[id]||{prev:0,current:0};const completedSeries=Math.min(Number(w.seriesProgress?.[id]||0),e.sets),finished=completedSeries>=e.sets;const usesLoad=e.kind==='reps'&&e.cat!=='Mobilidade';
+ shell(`<button class="back" id="back">‹ Voltar</button><span class="kicker">${e.block||'EXERCÍCIO'}</span><h1>${e.n}</h1><div class="exerciseVisual"><div class="bodyIcon">🏋️</div><div><b>${e.m}</b><p>${e.cue}</p><span class="badge">${e.eq}</span></div></div><section class="card"><div class="row"><div><span class="muted">Séries</span><strong class="bigNumber">${e.sets}</strong></div><div><span class="muted">Meta</span><strong class="bigNumber">${e.reps}</strong></div><div><span class="muted">Descanso</span><strong class="bigNumber">${e.rest?e.rest+'s':'—'}</strong></div></div></section><section class="section card seriesCard"><div class="row"><div><span class="kicker">PROGRESSO</span><h2>${finished?'Exercício concluído':`Série ${completedSeries+1} de ${e.sets}`}</h2></div><span class="badge">${completedSeries}/${e.sets}</span></div><div class="seriesDots">${Array.from({length:e.sets},(_,i)=>`<i class="${i<completedSeries?'on':''}">${i<completedSeries?'✓':i+1}</i>`).join('')}</div></section>${usesLoad?`<section class="section"><h2>Carga</h2><div class="grid"><div class="stat"><span>Anterior</span><strong>${load.prev||'—'}${load.prev?' kg':''}</strong></div><div class="stat"><span>Hoje</span><input class="loadInput" id="load" type="number" step="0.5" min="0" value="${load.current||load.prev||''}" placeholder="kg"></div></div><p class="hint">Aumente a carga apenas quando concluir as séries com técnica consistente.</p></section>`:`<section class="section card"><span class="kicker">META DO EXERCÍCIO</span><h2>${e.reps}</h2><p class="muted">Neste movimento o foco é tempo, controle ou mobilidade — carga não é necessária.</p></section>`}<button class="btn" id="done" ${finished?'disabled':''}>${finished?'✓ EXERCÍCIO CONCLUÍDO':(e.rest>0?'✓ CONCLUIR SÉRIE E DESCANSAR':'✓ CONCLUIR EXERCÍCIO')}</button><div id="timerBox">${e.rest>0?`<section class="section card restPreview"><div class="row"><div><span class="kicker">CRONÔMETRO DE DESCANSO</span><b>${e.rest} segundos</b></div><button class="pill" id="startRest">▶ Iniciar</button></div></section>`:`<section class="section card restPreview"><span class="kicker">SEM INTERVALO PROGRAMADO</span><p class="hint">Conclua após cumprir o tempo indicado.</p></section>`}</div><section class="section grid"><button class="btn alt" id="replace">⇄ SUBSTITUIR</button><button class="btn alt" id="how">? COMO FAZER</button></section>`);
+ $('#back').onclick=()=>{state.tab='train';save();render()};if(usesLoad&&$('#load'))$('#load').onchange=x=>{state.loads[id]={prev:load.prev||0,current:+x.target.value||0};save()};$('#done').onclick=()=>completeSeries(e,id);if($('#startRest'))$('#startRest').onclick=()=>startTimer(e.rest,id,e,false);$('#replace').onclick=()=>showReplacements(e);$('#how').onclick=()=>showGuide(e);if(state.activeRest?.workoutId===w.id&&state.activeRest?.exerciseId===id)resumeTimer(e,id)
 }
 function completeSeries(e,id){
  const w=ensureWorkout(); let n=Math.min(Number(w.seriesProgress?.[id]||0)+1,e.sets);w.seriesProgress=w.seriesProgress||{};w.seriesProgress[id]=n;
@@ -223,7 +265,7 @@ function finishWorkout(){
  const d=new Date(),elapsed=Math.max(1,Math.round((d-new Date(w.startedAt))/60000));state.workouts++;state.totalMinutes+=elapsed;
  state.history.unshift({sessionId:w.id,date:d.toISOString(),title:w.plan.title,minutes:elapsed,completed:done.length,total:w.plan.items.length,groups:[...new Set(w.plan.items.filter(x=>done.includes(x.id)).map(x=>x.cat))]});state.history=state.history.slice(0,100);
  Object.keys(state.loads).forEach(k=>{let l=state.loads[k];if(l.current>l.prev&&l.prev>0)state.records++;if(l.current>0)l.prev=l.current;l.current=0});
- state.lastWorkoutDate=d.toISOString();state.activeWorkout=null;state.activeRest=null;state.streak=recalcStreak();save();toast('Treino registrado! Sua evolução foi atualizada.');state.tab='home';setTimeout(render,500)
+ state.lastWorkoutDate=d.toISOString();state.activeWorkout=null;state.activeRest=null;state.streak=recalcStreak();const ci=cycleInfo();if(ci.done+1>=ci.length*Math.max(1,state.days)){state.cycleStartWorkouts=state.workouts;toast('Ciclo concluído! O próximo ciclo manterá a base e variará exercícios.')}save();toast('Treino registrado! Sua evolução foi atualizada.');state.tab='home';setTimeout(render,500)
 }
 
 const localAnswers=[
@@ -240,13 +282,13 @@ function appendChat(role,text){state.coachHistory.push({role,text,date:new Date(
 async function replyAI(q){const c=$('#chat');c.insertAdjacentHTML('beforeend','<div class="bubble typing" id="typing">Musy Coach está pensando…</div>');scrollChat();try{let text='';const api=(state.apiUrl||window.MUSYFIT_AI_URL||'').trim();if(api){const r=await fetch(api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,profile:{name:state.name,gender:state.gender,age:state.age,level:state.level,goal:state.goal,days:state.days,place:state.place},history:state.history.slice(0,8),plan:(state.activeWorkout?.plan||planFor(state.workouts)).items.map(x=>({name:x.n,sets:x.sets,reps:x.reps,muscles:x.m}))})});if(!r.ok)throw new Error('AI offline');const j=await r.json();text=j.answer||j.output||''}if(!text){const a=localAnswers.find(x=>x[0].test(q));text=a?a[1]:'Posso te ajudar com execução dos exercícios, séries, repetições, descanso, cargas, substituições, organização do treino e evolução. Me diga qual é a sua dúvida ou o nome do exercício.'}$('#typing')?.remove();appendChat('assistant',text)}catch(e){$('#typing')?.remove();const a=localAnswers.find(x=>x[0].test(q));appendChat('assistant',(a?a[1]:'Não consegui acessar a IA online agora. Ainda posso ajudar no modo local com exercícios, descanso, carga, substituições e organização do treino.'))}}
 function scrollChat(){const c=$('#chat');if(c)c.scrollTop=c.scrollHeight}
 
-function progress(){const bmi=(state.weight/((state.height/100)**2)).toFixed(1);const last=state.assessments[0];shell(`<div class="row"><div><span class="kicker">MUSY PROGRESS</span><h1>Evolução</h1></div><span class="badge">${state.workouts} treinos</span></div><section class="card muscleCard"><h2>Mapa muscular</h2><div class="bodymap"><div class="human">◉<br>╱┃╲<br>╱ ╲</div><div class="bars">${muscleStats().map(x=>`<div><div class="row small"><span>${x[0]}</span><b>${x[1]}%</b></div><div class="bar"><i style="width:${x[1]}%"></i></div></div>`).join('')}</div></div></section><section class="section grid"><div class="stat"><span>Peso</span><strong>${state.weight} kg</strong></div><div class="stat"><span>IMC</span><strong>${bmi}</strong></div><div class="stat"><span>Cintura</span><strong>${state.waist} cm</strong></div><div class="stat"><span>Treinos</span><strong>${state.workouts}</strong></div></section><section class="section card"><div class="row"><h2>Avaliação corporal</h2><button class="link" id="photo">+ foto</button></div><div class="form2"><label>Peso (kg)<input class="input" id="w" type="number" step="0.1" value="${state.weight}"></label><label>Altura (cm)<input class="input" id="h" type="number" value="${state.height}"></label><label>Cintura (cm)<input class="input" id="wa" type="number" value="${state.waist}"></label><label>Peito (cm)<input class="input" id="ch" type="number" value="${state.chest}"></label><label>Braço (cm)<input class="input" id="ar" type="number" value="${state.arm}"></label><label>Coxa (cm)<input class="input" id="th" type="number" value="${state.thigh}"></label></div><button class="btn" id="eval">SALVAR AVALIAÇÃO</button>${last?`<p class="hint">Última avaliação: ${new Date(last.date).toLocaleDateString('pt-BR')}</p>`:''}</section><section class="section"><h2>Histórico recente</h2>${state.history.slice(0,5).map(h=>`<div class="history"><div><b>${h.title}</b><span>${new Date(h.date).toLocaleDateString('pt-BR')}</span></div><div>${h.completed}/${h.total} • ${h.minutes} min</div></div>`).join('')||'<div class="card muted">Conclua seu primeiro treino para ver o histórico.</div>'}</section><input hidden id="photoInput" type="file" accept="image/*" capture="user">`);$('#eval').onclick=saveAssessment;$('#photo').onclick=()=>$('#photoInput').click();$('#photoInput').onchange=saveProgressPhoto}
-function muscleStats(){const hist=state.history.slice(0,7),v={Peito:0,Costas:0,Pernas:0,Ombros:0,Braços:0,Core:0};hist.forEach(h=>{const g=h.groups||String(h.title||'').split(' + ');g.forEach(k=>{if(k in v)v[k]+=20});if(g.length)v.Core=Math.min(100,v.Core+5)});return Object.entries(v).map(([k,n])=>[k,Math.min(100,n)])}
+function progress(){const bmi=(state.weight/((state.height/100)**2)).toFixed(1);const last=state.assessments[0],stats=Object.fromEntries(muscleStats());shell(`<div class="row"><div><span class="kicker">MUSY PROGRESS</span><h1>Evolução</h1></div><span class="badge">${state.workouts} treinos</span></div><section class="card muscleCard"><h2>Mapa muscular</h2><p class="muted">Estimativa visual baseada nos grupos realmente registrados nos treinos recentes.</p><div class="bodymap v8"><div class="anatomy"><svg viewBox="0 0 180 330" aria-label="Mapa corporal"><g class="bodyOutline"><circle cx="90" cy="28" r="20"/><path d="M70 52 Q90 45 110 52 L125 110 114 178 109 305 91 305 88 190 71 305 53 305 64 178 55 110Z"/><path d="M60 65 L25 150 39 156 74 95M120 65 L155 150 141 156 106 95"/></g><g class="muscles" style="--chest:${stats.Peito||0};--legs:${stats.Pernas||0};--arms:${stats.Braços||0};--core:${stats.Core||0};--shoulders:${stats.Ombros||0};--back:${stats.Costas||0}"><ellipse class="mz chest" cx="77" cy="82" rx="17" ry="15"/><ellipse class="mz chest" cx="103" cy="82" rx="17" ry="15"/><rect class="mz core" x="75" y="100" width="30" height="58" rx="12"/><ellipse class="mz shoulder" cx="61" cy="68" rx="12" ry="12"/><ellipse class="mz shoulder" cx="119" cy="68" rx="12" ry="12"/><path class="mz arms" d="M52 77 L30 142 43 147 66 90Z M128 77 L150 142 137 147 114 90Z"/><path class="mz legs" d="M67 165 L55 295 78 295 89 180Z M113 165 L125 295 102 295 91 180Z"/><path class="mz back" d="M72 94 Q90 110 108 94 L111 130 Q90 145 69 130Z"/></g></svg><span>Frente / costas</span></div><div class="bars">${muscleStats().map(x=>`<div><div class="row small"><span>${x[0]}</span><b>${x[1]}%</b></div><div class="bar"><i style="width:${x[1]}%"></i></div></div>`).join('')}</div></div></section><section class="section grid"><div class="stat"><span>Peso</span><strong>${state.weight} kg</strong></div><div class="stat"><span>IMC</span><strong>${bmi}</strong></div><div class="stat"><span>Cintura</span><strong>${state.waist} cm</strong></div><div class="stat"><span>Treinos</span><strong>${state.workouts}</strong></div></section><section class="section card"><div class="row"><h2>Avaliação corporal</h2><button class="link" id="photo">+ foto</button></div><div class="form2"><label>Peso (kg)<input class="input" id="w" type="number" step="0.1" value="${state.weight}"></label><label>Altura (cm)<input class="input" id="h" type="number" value="${state.height}"></label><label>Cintura (cm)<input class="input" id="wa" type="number" value="${state.waist}"></label><label>Peito (cm)<input class="input" id="ch" type="number" value="${state.chest}"></label><label>Braço (cm)<input class="input" id="ar" type="number" value="${state.arm}"></label><label>Coxa (cm)<input class="input" id="th" type="number" value="${state.thigh}"></label></div><button class="btn" id="eval">SALVAR AVALIAÇÃO</button>${last?`<p class="hint">Última avaliação: ${new Date(last.date).toLocaleDateString('pt-BR')}</p>`:''}</section><section class="section"><h2>Histórico recente</h2>${state.history.slice(0,5).map(h=>`<div class="history"><div><b>${h.title}</b><span>${new Date(h.date).toLocaleDateString('pt-BR')}</span></div><div>${h.completed}/${h.total} • ${h.minutes} min</div></div>`).join('')||'<div class="card muted">Conclua seu primeiro treino para ver o histórico.</div>'}</section><input hidden id="photoInput" type="file" accept="image/*" capture="user">`);$('#eval').onclick=saveAssessment;$('#photo').onclick=()=>$('#photoInput').click();$('#photoInput').onchange=saveProgressPhoto}
+function muscleStats(){const hist=state.history.slice(0,12),v={Peito:0,Costas:0,Pernas:0,Ombros:0,Braços:0,Core:0};hist.forEach(h=>(h.groups||[]).forEach(k=>{if(k in v)v[k]+=18}));const max=Math.max(1,...Object.values(v));return Object.entries(v).map(([k,n])=>[k,Math.min(100,Math.round(n/max*100))])}
 function saveAssessment(){['w','h','wa','ch','ar','th'].forEach(()=>{});state.weight=+$('#w').value||state.weight;state.height=+$('#h').value||state.height;state.waist=+$('#wa').value||state.waist;state.chest=+$('#ch').value||state.chest;state.arm=+$('#ar').value||state.arm;state.thigh=+$('#th').value||state.thigh;state.assessments.unshift({date:new Date().toISOString(),weight:state.weight,waist:state.waist,chest:state.chest,arm:state.arm,thigh:state.thigh});state.assessments=state.assessments.slice(0,24);save();toast('Avaliação salva.');render()}
 async function saveProgressPhoto(e){const f=e.target.files?.[0];if(!f)return;try{await idbPut('progressPhoto',{id:Date.now(),date:new Date().toISOString(),blob:f});toast('Foto de evolução salva somente neste aparelho.')}catch(err){toast('Não foi possível salvar a foto neste aparelho.')}}
 function idbPut(storeName,obj){return new Promise((res,rej)=>{let rq=indexedDB.open('musyfit-media',1);rq.onupgradeneeded=()=>{let db=rq.result;if(!db.objectStoreNames.contains(storeName))db.createObjectStore(storeName,{keyPath:'id'})};rq.onsuccess=()=>{let tx=rq.result.transaction(storeName,'readwrite');tx.objectStore(storeName).put(obj);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)};rq.onerror=()=>rej(rq.error)})}
 
-function profile(){shell(`<div class="row"><div><span class="kicker">PERFIL</span><h1>${esc(state.name)}</h1><p class="muted">${state.gender} • ${state.level}</p></div><div class="avatar bigav">${esc(state.name[0]||'M')}</div></div><section class="grid section"><div class="stat"><strong>${state.workouts}</strong><span>treinos</span></div><div class="stat"><strong>${state.streak}</strong><span>semanas</span></div></section><section class="section card settings"><label>Objetivo <b>${state.goal}</b></label><label>Local <b>${state.place}</b></label><label>Frequência <b>${state.days}x/semana</b></label><label>Descanso padrão <b>${state.restDefault}s</b></label><label class="switchline"><span>Resumo semanal</span><input id="notif" type="checkbox" ${state.weeklyNotifications?'checked':''}></label></section><section class="section card"><h2>Musy Coach AI</h2><p class="muted">Status: <b>${(state.apiUrl||window.MUSYFIT_AI_URL||'').trim()?'IA configurada':'Modo local'}</b>. A chave da IA nunca fica dentro do APK.</p><input class="input" id="api" placeholder="https://seu-backend.com/api/coach" value="${esc(state.apiUrl)}"><div class="grid sectionSmall"><button class="btn alt" id="saveApi">SALVAR SERVIDOR</button><button class="btn alt" id="testApi">TESTAR CONEXÃO</button></div></section><section class="section grid"><button class="btn alt" id="edit">EDITAR PERFIL</button><button class="btn alt" id="reset">RECOMEÇAR</button></section><p class="legal">Dados de treino ficam no aparelho. Fotos de evolução são armazenadas localmente no dispositivo.</p>`);$('#notif').onchange=e=>{state.weeklyNotifications=e.target.checked;save();if(state.weeklyNotifications)scheduleWeekly();else cancelWeekly()};$('#saveApi').onclick=()=>{state.apiUrl=$('#api').value.trim();save();toast('Servidor da IA salvo.')};$('#testApi').onclick=async()=>{const api=($('#api').value||window.MUSYFIT_AI_URL||'').trim();if(!api)return toast('Nenhum servidor de IA configurado.');toast('Testando conexão...');try{const r=await fetch(api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Responda apenas: conexão MusyFit OK',profile:{name:state.name}})});const j=await r.json();toast(r.ok?'IA online conectada.':`Servidor respondeu com erro.`)}catch(e){toast('Não foi possível conectar ao servidor da IA.')}};$('#edit').onclick=setupProfile;$('#reset').onclick=()=>{if(confirm('Apagar o perfil e reiniciar o MusyFit?')){['musyfit.v6','musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].forEach(k=>localStorage.removeItem(k));state=JSON.parse(JSON.stringify(defaults));onboarding()}}}
+function profile(){shell(`<div class="row"><div><span class="kicker">PERFIL</span><h1>${esc(state.name)}</h1><p class="muted">${state.gender} • ${state.level}</p></div><div class="avatar bigav">${esc(state.name[0]||'M')}</div></div><section class="grid section"><div class="stat"><strong>${state.workouts}</strong><span>treinos</span></div><div class="stat"><strong>${state.streak}</strong><span>semanas</span></div></section><section class="section card settings"><label>Objetivo <b>${state.goal}</b></label><label>Local <b>${state.place}</b></label><label>Frequência <b>${state.days}x/semana</b></label><label>Descanso padrão <b>${state.restDefault}s</b></label><label class="switchline"><span>Resumo semanal</span><input id="notif" type="checkbox" ${state.weeklyNotifications?'checked':''}></label></section><section class="section card"><h2>Musy Coach AI</h2><p class="muted">Status: <b>${(state.apiUrl||window.MUSYFIT_AI_URL||'').trim()?'IA configurada':'Modo local'}</b>. A chave da IA nunca fica dentro do APK.</p><input class="input" id="api" placeholder="https://seu-backend.com/api/coach" value="${esc(state.apiUrl)}"><div class="grid sectionSmall"><button class="btn alt" id="saveApi">SALVAR SERVIDOR</button><button class="btn alt" id="testApi">TESTAR CONEXÃO</button></div></section><section class="section grid"><button class="btn alt" id="edit">EDITAR PERFIL</button><button class="btn alt" id="reset">RECOMEÇAR</button></section><p class="legal">Dados de treino ficam no aparelho. Fotos de evolução são armazenadas localmente no dispositivo.</p>`);$('#notif').onchange=e=>{state.weeklyNotifications=e.target.checked;save();if(state.weeklyNotifications)scheduleWeekly();else cancelWeekly()};$('#saveApi').onclick=()=>{state.apiUrl=$('#api').value.trim();save();toast('Servidor da IA salvo.')};$('#testApi').onclick=async()=>{const api=($('#api').value||window.MUSYFIT_AI_URL||'').trim();if(!api)return toast('Nenhum servidor de IA configurado.');toast('Testando conexão...');try{const r=await fetch(api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Responda apenas: conexão MusyFit OK',profile:{name:state.name}})});const j=await r.json();toast(r.ok?'IA online conectada.':`Servidor respondeu com erro.`)}catch(e){toast('Não foi possível conectar ao servidor da IA.')}};$('#edit').onclick=setupProfile;$('#reset').onclick=()=>{if(confirm('Apagar o perfil e reiniciar o MusyFit?')){['musyfit.v8','musyfit.v7','musyfit.v6','musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].forEach(k=>localStorage.removeItem(k));state=JSON.parse(JSON.stringify(defaults));onboarding()}}}
 async function scheduleWeekly(){try{if(!window.Capacitor?.Plugins?.LocalNotifications)return;const p=Capacitor.Plugins.LocalNotifications;const perm=await p.requestPermissions();if(perm.display!=='granted')return;await p.cancel({notifications:[{id:7001}]});await p.schedule({notifications:[{id:7001,title:'Seu resumo MusyFit 💪',body:'Veja sua evolução da semana e prepare seu próximo treino.',schedule:{on:{weekday:1,hour:9,minute:0},repeats:true}}]})}catch(e){console.warn(e)}}
 async function cancelWeekly(){try{await Capacitor.Plugins.LocalNotifications.cancel({notifications:[{id:7001}]})}catch(e){}}
 function modal(html){let d=document.createElement('div');d.id='modal';d.className='modal';d.innerHTML=`<div class="modalbox"><button class="modalclose" id="modalClose">×</button>${html}</div>`;document.body.appendChild(d);$('#modalClose').onclick=closeModal;d.onclick=e=>{if(e.target===d)closeModal()}}

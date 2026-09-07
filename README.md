@@ -1,4 +1,8 @@
-# MusyFit v2 — Personal Trainer Inteligente
+# MusyFit V5
+
+Atualização: correção da montagem de treinos combinados. Quando o treino exibe grupos como Peito + Braços ou Pernas + Costas, a lista agora distribui exercícios entre todos os grupos em vez de preencher a ficha pelo primeiro grupo da biblioteca. Mantém o cronômetro de descanso por série e o Musy Coach corrigido.
+
+# MusyFit v3 — Personal Trainer Inteligente
 
 Projeto Android híbrido (Capacitor) preparado para GitHub Actions gerar um APK funcional de teste.
 
@@ -39,3 +43,26 @@ A implementação do backend usa a API Responses da OpenAI. Para uso comercial, 
 
 ## Aviso de saúde
 O MusyFit é um app de apoio ao treino. Não faz diagnóstico, não trata lesões e não substitui médico, fisioterapeuta, nutricionista ou profissional de educação física. Usuários com condições clínicas, dor, lesões, gestação ou limitações importantes devem buscar orientação profissional.
+
+
+## Novidades v3
+
+- Cronômetro de descanso dentro de cada exercício.
+- Início automático do descanso ao concluir cada série.
+- Controle de séries 1/4, 2/4 etc. e conclusão somente após a última série.
+- Pausar, pular, reduzir 15 s ou adicionar 30 s ao descanso.
+- Vibração ao terminar o descanso.
+- Musy Coach local corrigido: não repete o treino atual quando a pergunta não tem relação com a ficha.
+- Atalhos do Coach focados em execução, descanso, máquina ocupada e progressão de carga.
+
+
+## V5 — revisão de estabilidade
+- Sessão de treino persistente, sem duplicar finalização.
+- Séries e exercícios isolados por sessão, sem misturar treinos no mesmo dia.
+- Substituições ficam salvas durante o treino.
+- Cronômetro baseado em horário real, continua correto após minimizar/retomar.
+- Tempo real do treino no histórico.
+- Sequência semanal recalculada pelo histórico.
+- Mapa muscular usa grupos realmente concluídos.
+- Status e teste do backend do Musy Coach.
+- Divisões de treino específicas para 2 a 7 dias/semana.

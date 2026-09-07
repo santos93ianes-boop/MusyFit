@@ -1,0 +1,9 @@
+{
+  "name":"MusyFit — Seu parceiro em cada treino",
+  "short_name":"MusyFit",
+  "start_url":"./index.html",
+  "display":"standalone",
+  "background_color":"#070b0d",
+  "theme_color":"#070b0d",
+  "description":"Treinos personalizados, evolução, timer e Musy Coach."
+}

@@ -1,4 +1,4 @@
-# MusyFit V5
+# MusyFit V6 — Academia
 
 Atualização: correção da montagem de treinos combinados. Quando o treino exibe grupos como Peito + Braços ou Pernas + Costas, a lista agora distribui exercícios entre todos os grupos em vez de preencher a ficha pelo primeiro grupo da biblioteca. Mantém o cronômetro de descanso por série e o Musy Coach corrigido.
 
@@ -9,7 +9,7 @@ Projeto Android híbrido (Capacitor) preparado para GitHub Actions gerar um APK 
 ## O que funciona nesta versão
 - Onboarding com Homem / Mulher / 60+, idade, nível, objetivo, local e frequência de treino.
 - Plano de treino gerado pelo perfil: iniciante, intermediário, avançado ou experiente.
-- Biblioteca de exercícios para academia e casa, com instruções de execução.
+- Biblioteca revisada exclusivamente para academia, com instruções de execução, equipamento e prescrição adequada por tipo de exercício.
 - Academia Inteligente: troca de exercício por alternativa do mesmo grupo quando um aparelho estiver ocupado.
 - Registro de séries, carga atual/anterior e sugestão conservadora de progressão.
 - Cronômetro de descanso com +30 s, pular e vibração ao terminar.
@@ -56,7 +56,7 @@ O MusyFit é um app de apoio ao treino. Não faz diagnóstico, não trata lesõe
 - Atalhos do Coach focados em execução, descanso, máquina ocupada e progressão de carga.
 
 
-## V5 — revisão de estabilidade
+## V6 — revisão de estabilidade
 - Sessão de treino persistente, sem duplicar finalização.
 - Séries e exercícios isolados por sessão, sem misturar treinos no mesmo dia.
 - Substituições ficam salvas durante o treino.
@@ -66,3 +66,7 @@ O MusyFit é um app de apoio ao treino. Não faz diagnóstico, não trata lesõe
 - Mapa muscular usa grupos realmente concluídos.
 - Status e teste do backend do Musy Coach.
 - Divisões de treino específicas para 2 a 7 dias/semana.
+
+
+## V7 — Ícone premium
+O ícone do launcher agora usa a arte premium aprovada em `assets/musyfit_app_icon.png`, redimensionada em alta qualidade para todas as densidades Android pelo workflow do GitHub.

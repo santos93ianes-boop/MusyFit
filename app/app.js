@@ -1,93 +1,134 @@
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
-const STORAGE='musyfit.v5';
+const STORAGE='musyfit.v6';
 const defaults={
-  version:5,onboard:false,name:'Atleta',gender:'Homem',age:30,level:'Iniciante',goal:'Ganhar massa',days:4,place:'Academia',minutesTarget:50,
-  equipment:['Máquinas','Halteres','Barra'],weight:75,height:175,waist:85,chest:95,arm:32,hip:95,thigh:55,
+  version:6,onboard:false,name:'Atleta',gender:'Homem',age:30,level:'Iniciante',goal:'Ganhar massa',days:4,place:'Academia',minutesTarget:50,
+  equipment:['Máquinas','Cabos','Halteres','Barra'],weight:75,height:175,waist:85,chest:95,arm:32,hip:95,thigh:55,
   workouts:0,records:0,totalMinutes:0,streak:0,tab:'home',weeklyNotifications:true,restDefault:90,
   history:[],assessments:[],completed:{},seriesProgress:{},loads:{},favorites:[],coachHistory:[],apiUrl:'',lastWorkoutDate:null,activeWorkout:null,activeRest:null
 };
-let state=Object.assign({},defaults,JSON.parse(localStorage.getItem(STORAGE)||localStorage.getItem('musyfit.v4')||localStorage.getItem('musyfit.v3')||localStorage.getItem('musyfit.v2')||localStorage.getItem('musyfit')||'{}'));
+let previousKey=['musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].find(k=>localStorage.getItem(k));
+let previous=previousKey?JSON.parse(localStorage.getItem(previousKey)||'{}'):{};
+let state=Object.assign({},defaults,JSON.parse(localStorage.getItem(STORAGE)||'{}'));
+if(!localStorage.getItem(STORAGE)&&previousKey){
+ state=Object.assign({},defaults,previous,{version:6,place:'Academia',activeWorkout:null,activeRest:null,seriesProgress:{},completed:{}});
+}
+state.version=6;state.place='Academia';state.equipment=['Máquinas','Cabos','Halteres','Barra'];
 state.seriesProgress=state.seriesProgress||{};
 const save=()=>localStorage.setItem(STORAGE,JSON.stringify(state));
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const today=()=>new Date().toISOString().slice(0,10);
 const fmtMin=n=>`${Math.floor(n/60)}h${String(n%60).padStart(2,'0')}`;
 
+// Biblioteca V6 revisada: somente exercícios adequados ao ambiente de academia.
+// kind: reps = repetições, seconds = tempo, minutes = cardio.
 const LIB=[
- {id:'squat',n:'Agachamento',m:'Quadríceps • Glúteos',eq:['Livre','Barra','Academia'],cat:'Pernas',cue:'Pés firmes, joelhos acompanhando a linha dos pés e tronco estável.'},
- {id:'legpress',n:'Leg press',m:'Quadríceps • Glúteos',eq:['Máquinas','Academia'],cat:'Pernas',cue:'Mantenha lombar apoiada e controle a descida sem travar os joelhos.'},
- {id:'ext',n:'Cadeira extensora',m:'Quadríceps',eq:['Máquinas','Academia'],cat:'Pernas',cue:'Suba controlando e evite impulso do tronco.'},
- {id:'flex',n:'Mesa flexora',m:'Posterior de coxa',eq:['Máquinas','Academia'],cat:'Pernas',cue:'Quadril estável no banco e movimento controlado.'},
- {id:'rdl',n:'Levantamento romeno',m:'Posterior • Glúteos',eq:['Barra','Halteres','Academia'],cat:'Pernas',cue:'Quadril vai para trás, coluna neutra e carga próxima ao corpo.'},
- {id:'calf',n:'Panturrilha em pé',m:'Panturrilhas',eq:['Livre','Máquinas','Academia','Casa'],cat:'Pernas',cue:'Amplitude confortável, subida forte e descida controlada.'},
- {id:'bench',n:'Supino reto',m:'Peito • Tríceps',eq:['Barra','Halteres','Academia'],cat:'Peito',cue:'Pés apoiados, escápulas estáveis e descida controlada.'},
- {id:'incline',n:'Supino inclinado',m:'Peito superior • Tríceps',eq:['Halteres','Barra','Academia'],cat:'Peito',cue:'Mantenha ombros para baixo e controle o arco do movimento.'},
- {id:'fly',n:'Crucifixo',m:'Peito',eq:['Halteres','Máquinas','Academia'],cat:'Peito',cue:'Cotovelos levemente flexionados, abra apenas até manter conforto no ombro.'},
- {id:'pushup',n:'Flexão de braços',m:'Peito • Tríceps • Core',eq:['Livre','Casa','Academia'],cat:'Peito',cue:'Corpo alinhado e cotovelos em ângulo confortável.'},
- {id:'row',n:'Remada baixa',m:'Costas • Bíceps',eq:['Máquinas','Academia'],cat:'Costas',cue:'Puxe levando cotovelos para trás sem balançar o tronco.'},
- {id:'pulldown',n:'Puxada frontal',m:'Dorsais • Bíceps',eq:['Máquinas','Academia'],cat:'Costas',cue:'Peito aberto, puxe à frente e evite jogar o corpo para trás.'},
- {id:'onearm',n:'Remada unilateral',m:'Costas • Bíceps',eq:['Halteres','Academia','Casa'],cat:'Costas',cue:'Tronco firme, puxe o cotovelo em direção ao quadril.'},
- {id:'facepull',n:'Face pull',m:'Ombro posterior • Costas',eq:['Máquinas','Elástico','Academia','Casa'],cat:'Costas',cue:'Puxe em direção ao rosto mantendo ombros longe das orelhas.'},
- {id:'ohp',n:'Desenvolvimento',m:'Ombros • Tríceps',eq:['Halteres','Barra','Academia'],cat:'Ombros',cue:'Abdômen firme e evite compensar arqueando demais a lombar.'},
- {id:'lateral',n:'Elevação lateral',m:'Ombros',eq:['Halteres','Elástico','Academia','Casa'],cat:'Ombros',cue:'Suba com controle e sem encolher os ombros.'},
- {id:'curl',n:'Rosca direta',m:'Bíceps',eq:['Barra','Halteres','Elástico','Academia','Casa'],cat:'Braços',cue:'Cotovelos próximos ao corpo e sem embalo.'},
- {id:'hammer',n:'Rosca martelo',m:'Bíceps • Antebraço',eq:['Halteres','Academia','Casa'],cat:'Braços',cue:'Punhos neutros e cotovelos estáveis.'},
- {id:'pushdown',n:'Tríceps corda',m:'Tríceps',eq:['Máquinas','Academia'],cat:'Braços',cue:'Cotovelos fixos ao lado do corpo e extensão controlada.'},
- {id:'overtri',n:'Tríceps acima da cabeça',m:'Tríceps',eq:['Halteres','Elástico','Academia','Casa'],cat:'Braços',cue:'Mantenha cotovelos apontados para frente e abdômen firme.'},
- {id:'plank',n:'Prancha',m:'Core',eq:['Livre','Casa','Academia'],cat:'Core',cue:'Corpo alinhado, glúteos e abdômen ativos, respiração normal.'},
- {id:'deadbug',n:'Dead bug',m:'Core',eq:['Livre','Casa','Academia'],cat:'Core',cue:'Lombar apoiada e movimentos lentos sem perder controle.'},
- {id:'bridge',n:'Ponte de glúteos',m:'Glúteos • Core',eq:['Livre','Casa','Academia'],cat:'Pernas',cue:'Empurre o chão com os pés e evite hiperestender a lombar.'},
- {id:'sitstand',n:'Sentar e levantar',m:'Pernas • Equilíbrio',eq:['Livre','Casa','Academia'],cat:'Mobilidade',cue:'Use uma cadeira firme, controle a descida e mantenha apoio estável.'},
- {id:'wallpush',n:'Flexão na parede',m:'Peito • Braços',eq:['Livre','Casa'],cat:'Mobilidade',cue:'Corpo alinhado, mãos na altura do peito e movimento confortável.'},
- {id:'march',n:'Marcha estacionária',m:'Condicionamento',eq:['Livre','Casa','Academia'],cat:'Cardio',cue:'Postura alta, ritmo confortável e apoio próximo se necessário.'},
- {id:'walk',n:'Caminhada',m:'Cardiorrespiratório',eq:['Livre','Casa','Academia'],cat:'Cardio',cue:'Ritmo em que você consiga falar frases curtas sem desconforto.'}
+ {id:'squat',n:'Agachamento livre',m:'Quadríceps • Glúteos • Core',eq:'Barra',cat:'Pernas',kind:'reps',cue:'Pés firmes, joelhos acompanhando a linha dos pés, coluna neutra e descida controlada.'},
+ {id:'hack',n:'Agachamento Hack',m:'Quadríceps • Glúteos',eq:'Máquina',cat:'Pernas',kind:'reps',cue:'Mantenha costas apoiadas, pés estáveis e não trave os joelhos no topo.'},
+ {id:'legpress',n:'Leg press 45°',m:'Quadríceps • Glúteos',eq:'Máquina',cat:'Pernas',kind:'reps',cue:'Lombar apoiada, joelhos alinhados aos pés e amplitude sem retirar o quadril do banco.'},
+ {id:'ext',n:'Cadeira extensora',m:'Quadríceps',eq:'Máquina',cat:'Pernas',kind:'reps',cue:'Ajuste o eixo ao joelho, suba sem impulso e controle a descida.'},
+ {id:'flex',n:'Mesa flexora',m:'Posterior de coxa',eq:'Máquina',cat:'Pernas',kind:'reps',cue:'Quadril apoiado, joelhos alinhados ao eixo e movimento sem tirar o quadril do banco.'},
+ {id:'seatedcurl',n:'Flexora sentada',m:'Posterior de coxa',eq:'Máquina',cat:'Pernas',kind:'reps',cue:'Mantenha quadril e costas apoiados e flexione os joelhos de forma controlada.'},
+ {id:'rdl',n:'Levantamento romeno',m:'Posterior • Glúteos',eq:'Barra/Halteres',cat:'Pernas',kind:'reps',cue:'Quadril vai para trás, joelhos levemente flexionados, coluna neutra e carga próxima ao corpo.'},
+ {id:'hipthrust',n:'Hip thrust',m:'Glúteos • Posterior',eq:'Barra/Máquina',cat:'Pernas',kind:'reps',cue:'Queixo levemente recolhido, costelas controladas e finalize contraindo glúteos sem hiperestender a lombar.'},
+ {id:'adductor',n:'Cadeira adutora',m:'Adutores',eq:'Máquina',cat:'Pernas',kind:'reps',cue:'Mantenha tronco apoiado e feche as pernas com controle, sem bater as placas.'},
+ {id:'abductor',n:'Cadeira abdutora',m:'Glúteo médio',eq:'Máquina',cat:'Pernas',kind:'reps',cue:'Tronco estável e abertura controlada, evitando impulso.'},
+ {id:'calf',n:'Panturrilha na máquina',m:'Panturrilhas',eq:'Máquina',cat:'Pernas',kind:'reps',cue:'Use amplitude confortável, pause no alto e controle totalmente a descida.'},
+
+ {id:'bench',n:'Supino reto com barra',m:'Peitoral • Tríceps • Ombro anterior',eq:'Barra',cat:'Peito',kind:'reps',cue:'Pés firmes, escápulas para trás e para baixo, punhos alinhados e descida controlada.'},
+ {id:'dbbench',n:'Supino reto com halteres',m:'Peitoral • Tríceps',eq:'Halteres',cat:'Peito',kind:'reps',cue:'Escápulas estáveis, halteres sob controle e cotovelos em ângulo confortável.'},
+ {id:'incline',n:'Supino inclinado com halteres',m:'Peitoral superior • Tríceps',eq:'Halteres',cat:'Peito',kind:'reps',cue:'Banco moderadamente inclinado, ombros baixos e movimento controlado.'},
+ {id:'chestpress',n:'Chest press',m:'Peitoral • Tríceps',eq:'Máquina',cat:'Peito',kind:'reps',cue:'Ajuste o banco para as manoplas ficarem na linha do peito e mantenha costas apoiadas.'},
+ {id:'pecdeck',n:'Peck deck',m:'Peitoral',eq:'Máquina',cat:'Peito',kind:'reps',cue:'Cotovelos alinhados, ombros baixos e feche sem perder o apoio das costas.'},
+ {id:'cablefly',n:'Crossover no cabo',m:'Peitoral',eq:'Cabos',cat:'Peito',kind:'reps',cue:'Tronco firme, cotovelos levemente flexionados e mãos aproximando-se à frente do peito.'},
+
+ {id:'pulldown',n:'Puxada frontal',m:'Dorsais • Bíceps',eq:'Cabos/Máquina',cat:'Costas',kind:'reps',cue:'Peito aberto, ombros baixos e puxe a barra à frente sem jogar o tronco para trás.'},
+ {id:'row',n:'Remada baixa',m:'Costas • Bíceps',eq:'Cabos',cat:'Costas',kind:'reps',cue:'Coluna neutra, peito aberto e cotovelos indo para trás sem embalo.'},
+ {id:'chestrow',n:'Remada máquina com apoio',m:'Costas • Bíceps',eq:'Máquina',cat:'Costas',kind:'reps',cue:'Peito apoiado, ombros longe das orelhas e cotovelos conduzindo o movimento.'},
+ {id:'onearm',n:'Remada unilateral com halter',m:'Dorsais • Bíceps',eq:'Halter',cat:'Costas',kind:'reps',cue:'Tronco firme e puxe o cotovelo em direção ao quadril, sem girar o corpo.'},
+ {id:'tbar',n:'Remada T',m:'Costas • Bíceps',eq:'Máquina/Barra',cat:'Costas',kind:'reps',cue:'Mantenha coluna neutra, abdômen firme e puxe sem usar impulso do quadril.'},
+ {id:'straightpull',n:'Pulldown braços retos',m:'Dorsais',eq:'Cabos',cat:'Costas',kind:'reps',cue:'Cotovelos quase estendidos, costelas controladas e leve as mãos em direção às coxas.'},
+ {id:'facepull',n:'Face pull',m:'Deltoide posterior • Trapézio médio',eq:'Cabos',cat:'Costas',kind:'reps',cue:'Puxe a corda em direção ao rosto, abrindo as mãos e mantendo ombros baixos.'},
+
+ {id:'ohp',n:'Desenvolvimento com halteres',m:'Ombros • Tríceps',eq:'Halteres',cat:'Ombros',kind:'reps',cue:'Abdômen firme, punhos sobre os cotovelos e sem exagerar o arco lombar.'},
+ {id:'machinepress',n:'Desenvolvimento na máquina',m:'Ombros • Tríceps',eq:'Máquina',cat:'Ombros',kind:'reps',cue:'Ajuste o banco para as pegadas iniciarem próximas à linha dos ombros e mantenha costas apoiadas.'},
+ {id:'lateral',n:'Elevação lateral',m:'Deltoide lateral',eq:'Halteres',cat:'Ombros',kind:'reps',cue:'Cotovelos levemente flexionados, suba sem encolher os ombros e controle a descida.'},
+ {id:'cablelat',n:'Elevação lateral no cabo',m:'Deltoide lateral',eq:'Cabos',cat:'Ombros',kind:'reps',cue:'Tronco imóvel e braço subindo lateralmente com controle.'},
+ {id:'reversefly',n:'Crucifixo inverso máquina',m:'Deltoide posterior • Costas',eq:'Máquina',cat:'Ombros',kind:'reps',cue:'Peito apoiado e braços abrindo sem elevar os ombros.'},
+
+ {id:'curl',n:'Rosca direta',m:'Bíceps',eq:'Barra',cat:'Braços',kind:'reps',cue:'Cotovelos próximos ao corpo, punhos neutros e sem embalo do tronco.'},
+ {id:'inclinecurl',n:'Rosca inclinada',m:'Bíceps',eq:'Halteres',cat:'Braços',kind:'reps',cue:'Ombros apoiados no banco e cotovelos permanecendo atrás do tronco.'},
+ {id:'hammer',n:'Rosca martelo',m:'Bíceps • Braquial • Antebraço',eq:'Halteres',cat:'Braços',kind:'reps',cue:'Pegada neutra, cotovelos estáveis e movimento sem balanço.'},
+ {id:'preacher',n:'Rosca Scott',m:'Bíceps',eq:'Máquina/Barra',cat:'Braços',kind:'reps',cue:'Braços apoiados e extensão controlada, sem tirar os cotovelos do suporte.'},
+ {id:'pushdown',n:'Tríceps na corda',m:'Tríceps',eq:'Cabos',cat:'Braços',kind:'reps',cue:'Cotovelos junto ao corpo, estenda até o final sem mover os ombros.'},
+ {id:'barpushdown',n:'Tríceps na barra',m:'Tríceps',eq:'Cabos',cat:'Braços',kind:'reps',cue:'Tronco estável e cotovelos fixos enquanto estende os braços.'},
+ {id:'overtri',n:'Tríceps francês com halter',m:'Tríceps',eq:'Halter',cat:'Braços',kind:'reps',cue:'Cotovelos apontados para frente, abdômen firme e amplitude confortável.'},
+
+ {id:'cablecrunch',n:'Abdominal no cabo',m:'Reto abdominal',eq:'Cabos',cat:'Core',kind:'reps',cue:'Flexione o tronco aproximando costelas da pelve, sem puxar apenas com os braços.'},
+ {id:'abmachine',n:'Abdominal na máquina',m:'Reto abdominal',eq:'Máquina',cat:'Core',kind:'reps',cue:'Ajuste o equipamento e faça a flexão do tronco sem impulso.'},
+ {id:'kneeraise',n:'Elevação de joelhos',m:'Abdômen • Flexores do quadril',eq:'Estação',cat:'Core',kind:'reps',cue:'Evite balanço e eleve os joelhos mantendo abdômen ativo.'},
+ {id:'pallof',n:'Pallof press',m:'Core anti-rotação',eq:'Cabos',cat:'Core',kind:'reps',cue:'Fique de lado para o cabo e estenda os braços sem deixar o tronco girar.'},
+ {id:'plank',n:'Prancha',m:'Core',eq:'Colchonete',cat:'Core',kind:'seconds',cue:'Corpo alinhado, abdômen e glúteos ativos e respiração normal.'},
+
+ {id:'treadmill',n:'Esteira',m:'Condicionamento cardiorrespiratório',eq:'Cardio',cat:'Cardio',kind:'minutes',cue:'Use ritmo sustentável e postura ereta. Reduza a intensidade se perder o controle da respiração.'},
+ {id:'bike',n:'Bicicleta ergométrica',m:'Condicionamento • Pernas',eq:'Cardio',cat:'Cardio',kind:'minutes',cue:'Ajuste o banco para não comprimir demais os joelhos e mantenha cadência confortável.'},
+ {id:'elliptical',n:'Elíptico',m:'Condicionamento de baixo impacto',eq:'Cardio',cat:'Cardio',kind:'minutes',cue:'Mantenha tronco ereto, passada contínua e intensidade progressiva.'},
+
+ {id:'mobilityhips',n:'Mobilidade de quadril',m:'Quadril • Tornozelos',eq:'Área funcional',cat:'Mobilidade',kind:'seconds',cue:'Movimentos lentos, sem forçar amplitude dolorosa; mantenha apoio estável.'},
+ {id:'mobilityshoulder',n:'Mobilidade de ombros no cabo leve',m:'Ombros • Escápulas',eq:'Cabos',cat:'Mobilidade',kind:'reps',cue:'Use carga mínima e trabalhe apenas a amplitude confortável.'},
+ {id:'sitstand',n:'Sentar e levantar do banco',m:'Pernas • Equilíbrio',eq:'Banco',cat:'Mobilidade',kind:'reps',cue:'Pés firmes, tronco estável e controle tanto na subida quanto na descida.'}
 ];
 
-function available(e){ if(state.place==='Casa' && !e.eq.includes('Casa') && !e.eq.includes('Livre'))return false; if(state.place==='Academia')return true; return true; }
+function available(e){return true}
 function scheme(){
  if(state.gender==='60+') return {sets:state.level==='Iniciante'?2:3,reps:'10–15',rest:90};
  if(state.goal==='Força') return {sets:4,reps:'4–6',rest:150};
  if(state.goal==='Ganhar massa'||state.goal==='Definição') return {sets:state.level==='Iniciante'?3:4,reps:'8–12',rest:90};
  if(state.goal==='Condicionamento'||state.goal==='Emagrecer') return {sets:3,reps:'12–15',rest:60};
- return {sets:2,reps:'10–15',rest:75};
+ return {sets:3,reps:'10–15',rest:75};
+}
+function prescription(e,s){
+ if(e.kind==='minutes'){
+  const mins=state.level==='Iniciante'?10:state.level==='Intermediário'?15:20;
+  return {sets:1,reps:`${mins} min`,rest:0};
+ }
+ if(e.kind==='seconds') return {sets:e.cat==='Mobilidade'?2:3,reps:e.cat==='Mobilidade'?'30–45 s':'30–60 s',rest:e.cat==='Mobilidade'?30:60};
+ return {sets:s.sets,reps:s.reps,rest:s.rest};
 }
 function balancedExercises(cats,limit){
- const pools=cats.map(cat=>LIB.filter(e=>e.cat===cat&&available(e)));
- const picked=[];
- let round=0;
+ const pools=cats.map(cat=>LIB.filter(e=>e.cat===cat));
+ const picked=[];let round=0;
  while(picked.length<limit){
   let added=false;
   for(let i=0;i<cats.length&&picked.length<limit;i++){
-   const ex=pools[i][round];
+   const pool=pools[i]; if(!pool.length) continue;
+   const offset=(state.workouts+i)%pool.length;
+   const ex=pool[(round+offset)%pool.length];
    if(ex&&!picked.some(x=>x.id===ex.id)){picked.push(ex);added=true;}
   }
-  if(!added)break;
-  round++;
+  if(!added||round>20)break;round++;
  }
  return picked;
 }
 function splitFor(dayIndex=0){
  const splits={
-  2:[['Pernas','Peito','Costas','Core'],['Pernas','Ombros','Braços','Cardio']],
-  3:[['Pernas','Peito','Core'],['Costas','Braços','Cardio'],['Pernas','Ombros','Peito','Core']],
-  4:[['Peito','Braços'],['Costas','Core'],['Pernas','Core'],['Ombros','Peito','Braços']],
-  5:[['Peito','Braços'],['Costas','Braços'],['Pernas','Core'],['Ombros','Peito','Core'],['Pernas','Costas']],
-  6:[['Peito','Braços'],['Costas','Core'],['Pernas','Core'],['Ombros','Peito'],['Costas','Braços'],['Pernas','Cardio']],
-  7:[['Peito','Braços'],['Costas','Core'],['Pernas'],['Ombros','Peito'],['Costas','Braços'],['Pernas','Core'],['Cardio','Mobilidade']]
+  2:[['Pernas','Peito','Costas','Core'],['Pernas','Ombros','Braços','Core']],
+  3:[['Peito','Ombros','Braços'],['Costas','Braços','Core'],['Pernas','Core']],
+  4:[['Peito','Costas','Ombros'],['Pernas','Core'],['Peito','Costas','Braços'],['Pernas','Ombros','Core']],
+  5:[['Peito','Ombros','Braços'],['Costas','Braços'],['Pernas','Core'],['Peito','Costas','Ombros'],['Pernas','Core']],
+  6:[['Peito','Ombros','Braços'],['Costas','Braços'],['Pernas','Core'],['Peito','Ombros','Braços'],['Costas','Braços'],['Pernas','Core']],
+  7:[['Peito','Ombros','Braços'],['Costas','Braços'],['Pernas','Core'],['Peito','Costas'],['Ombros','Braços'],['Pernas','Core'],['Cardio','Mobilidade']]
  };
  if(state.gender==='60+'){
-  const senior=[['Mobilidade','Pernas','Core'],['Cardio','Peito','Costas'],['Pernas','Costas','Core'],['Mobilidade','Ombros','Braços']];
+  const senior=[['Pernas','Core','Mobilidade'],['Peito','Costas','Cardio'],['Pernas','Ombros','Core'],['Costas','Braços','Mobilidade']];
   return senior[dayIndex%senior.length];
  }
  const arr=splits[Math.max(2,Math.min(7,state.days))]||splits[4];
  return arr[dayIndex%arr.length];
 }
 function planFor(dayIndex=0){
- const s=scheme(), cats=splitFor(dayIndex);
- const limit=state.level==='Iniciante'?6:7;
- const arr=balancedExercises(cats,limit).map(e=>({...e,sets:s.sets,reps:s.reps,rest:s.rest}));
- const used=[...new Set(arr.map(e=>e.cat))];
- return {title:used.join(' + '),items:arr};
+ const s=scheme(),cats=splitFor(dayIndex),limit=state.level==='Iniciante'?6:7;
+ const arr=balancedExercises(cats,limit).map(e=>({...e,...prescription(e,s)}));
+ return {title:cats.join(' + '),items:arr};
 }
 function newWorkout(){
  const p=planFor(state.workouts);
@@ -112,11 +153,11 @@ function setupProfile(){
  <div class="form2"><label>Nome<input class="input" id="name" value="${esc(state.name==='Atleta'?'':state.name)}"></label><label>Idade<input class="input" id="age" type="number" min="14" max="100" value="${state.age}"></label></div>
  <h2>Nível</h2><div>${['Iniciante','Intermediário','Avançado','Experiente'].map(v=>`<span class="pill ${state.level===v?'on':''}" data-level="${v}">${v}</span>`).join('')}</div>
  <h2>Objetivo</h2><div>${['Ganhar massa','Emagrecer','Definição','Força','Condicionamento','Mobilidade'].map(v=>`<span class="pill ${state.goal===v?'on':''}" data-goal="${v}">${v}</span>`).join('')}</div>
- <h2>Onde treina?</h2><div>${['Academia','Casa'].map(v=>`<span class="pill ${state.place===v?'on':''}" data-place="${v}">${v}</span>`).join('')}</div>
+ <h2>Local de treino</h2><div><span class="pill on">Academia</span></div><p class="hint">MusyFit V6 foi otimizado exclusivamente para treinos em academia.</p>
  <div class="form2"><label>Dias/semana<input class="input" id="days" type="number" min="2" max="7" value="${state.days}"></label><label>Min/treino<input class="input" id="mins" type="number" min="20" max="120" value="${state.minutesTarget}"></label></div>
  <button class="btn" id="go">CRIAR MEU PLANO</button></section></main>`;
- $$('#gender button').forEach(b=>b.onclick=()=>{state.gender=b.textContent;setupProfile()}); $$('[data-level]').forEach(b=>b.onclick=()=>{state.level=b.dataset.level;setupProfile()}); $$('[data-goal]').forEach(b=>b.onclick=()=>{state.goal=b.dataset.goal;setupProfile()}); $$('[data-place]').forEach(b=>b.onclick=()=>{state.place=b.dataset.place;setupProfile()});
- $('#go').onclick=()=>{state.name=$('#name').value.trim()||'Atleta';state.age=+$('#age').value||30;state.days=Math.max(2,Math.min(7,+$('#days').value||4));state.minutesTarget=+$('#mins').value||50;state.onboard=true;save();scheduleWeekly();state.tab='home';render()}
+ $$('#gender button').forEach(b=>b.onclick=()=>{state.gender=b.textContent;setupProfile()}); $$('[data-level]').forEach(b=>b.onclick=()=>{state.level=b.dataset.level;setupProfile()}); $$('[data-goal]').forEach(b=>b.onclick=()=>{state.goal=b.dataset.goal;setupProfile()});
+ $('#go').onclick=()=>{state.name=$('#name').value.trim()||'Atleta';state.age=+$('#age').value||30;state.days=Math.max(2,Math.min(7,+$('#days').value||4));state.minutesTarget=+$('#mins').value||50;state.place='Academia';state.onboard=true;save();scheduleWeekly();state.tab='home';render()}
 }
 function home(){const p=planFor(state.workouts);const week=state.history.filter(h=>Date.now()-new Date(h.date).getTime()<7*864e5).length; const progress=Math.min(100,Math.round((state.workouts/20)*100)); shell(`
  <header class="row"><div><div class="brand">MUSY<b>FIT</b></div><h1>Olá, ${esc(state.name)} 👋</h1><p class="muted">Seu plano está pronto para hoje.</p></div><button class="iconbtn" id="bell">🔔</button></header>
@@ -138,22 +179,22 @@ function exercise(id){
  const load=state.loads[id]||{prev:0,current:0};
  const completedSeries=Math.min(Number(w.seriesProgress?.[id]||0),e.sets), finished=completedSeries>=e.sets;
  shell(`<button class="back" id="back">‹ Voltar</button><span class="kicker">EXERCÍCIO</span><h1>${e.n}</h1>
- <div class="exerciseVisual"><div class="bodyIcon">🏋️</div><div><b>${e.m}</b><p>${e.cue}</p></div></div>
+ <div class="exerciseVisual"><div class="bodyIcon">🏋️</div><div><b>${e.m}</b><p>${e.cue}</p><span class="badge">${e.eq}</span></div></div>
  <section class="card"><div class="row"><div><span class="muted">Séries</span><strong class="bigNumber">${e.sets}</strong></div><div><span class="muted">Repetições</span><strong class="bigNumber">${e.reps}</strong></div><div><span class="muted">Descanso</span><strong class="bigNumber">${e.rest}s</strong></div></div></section>
  <section class="section card seriesCard"><div class="row"><div><span class="kicker">PROGRESSO</span><h2>${finished?'Exercício concluído':`Série ${completedSeries+1} de ${e.sets}`}</h2></div><span class="badge">${completedSeries}/${e.sets}</span></div><div class="seriesDots">${Array.from({length:e.sets},(_,i)=>`<i class="${i<completedSeries?'on':''}">${i<completedSeries?'✓':i+1}</i>`).join('')}</div></section>
  <section class="section"><h2>Carga</h2><div class="grid"><div class="stat"><span>Anterior</span><strong>${load.prev||'—'}${load.prev?' kg':''}</strong></div><div class="stat"><span>Hoje</span><input class="loadInput" id="load" type="number" step="0.5" min="0" value="${load.current||load.prev||''}" placeholder="kg"></div></div><p class="hint">Aumente a carga apenas quando concluir as séries com técnica consistente. Progressão pequena é opcional.</p></section>
- <button class="btn" id="done" ${finished?'disabled':''}>${finished?'✓ EXERCÍCIO CONCLUÍDO':'✓ CONCLUIR SÉRIE E DESCANSAR'}</button>
- <div id="timerBox"><section class="section card restPreview"><div class="row"><div><span class="kicker">CRONÔMETRO DE DESCANSO</span><b>${e.rest} segundos</b></div><button class="pill" id="startRest">▶ Iniciar</button></div><p class="hint">Inicia automaticamente após cada série e continua correto se o app for minimizado.</p></section></div>
+ <button class="btn" id="done" ${finished?'disabled':''}>${finished?'✓ EXERCÍCIO CONCLUÍDO':(e.rest>0?'✓ CONCLUIR SÉRIE E DESCANSAR':'✓ CONCLUIR EXERCÍCIO')}</button>
+ <div id="timerBox">${e.rest>0?`<section class="section card restPreview"><div class="row"><div><span class="kicker">CRONÔMETRO DE DESCANSO</span><b>${e.rest} segundos</b></div><button class="pill" id="startRest">▶ Iniciar</button></div><p class="hint">Inicia automaticamente após cada série e continua correto se o app for minimizado.</p></section>`:`<section class="section card restPreview"><span class="kicker">SEM INTERVALO PROGRAMADO</span><p class="hint">Este exercício é contínuo. Conclua após cumprir o tempo indicado.</p></section>`}</div>
  <section class="section grid"><button class="btn alt" id="replace">⇄ SUBSTITUIR</button><button class="btn alt" id="how">? COMO FAZER</button></section>`);
  $('#back').onclick=()=>{state.tab='train';save();render()};
  $('#load').onchange=x=>{state.loads[id]={prev:load.prev||0,current:+x.target.value||0};save()};
- $('#done').onclick=()=>completeSeries(e,id); $('#startRest').onclick=()=>startTimer(e.rest,id,e,false);
+ $('#done').onclick=()=>completeSeries(e,id); if($('#startRest'))$('#startRest').onclick=()=>startTimer(e.rest,id,e,false);
  $('#replace').onclick=()=>showReplacements(e); $('#how').onclick=()=>showGuide(e);
  if(state.activeRest?.workoutId===w.id&&state.activeRest?.exerciseId===id) resumeTimer(e,id);
 }
 function completeSeries(e,id){
  const w=ensureWorkout(); let n=Math.min(Number(w.seriesProgress?.[id]||0)+1,e.sets);w.seriesProgress=w.seriesProgress||{};w.seriesProgress[id]=n;
- if(n>=e.sets&&!w.completed.includes(id))w.completed.push(id);save();startTimer(e.rest,id,e,n>=e.sets)
+ if(n>=e.sets&&!w.completed.includes(id))w.completed.push(id);save();if(e.rest>0)startTimer(e.rest,id,e,n>=e.sets);else exercise(id)
 }
 function startTimer(seconds,id,e,finalSeries=false){
  clearInterval(timerInt);const sec=Math.max(0,Number(seconds)||90);state.activeRest={workoutId:ensureWorkout().id,exerciseId:id,endAt:Date.now()+sec*1000,remaining:sec,paused:false,finalSeries};save();runTimer(e,id)
@@ -172,7 +213,7 @@ function runTimer(e,id){
 function showReplacements(e){
  const alts=LIB.filter(x=>x.id!==e.id&&x.cat===e.cat&&available(x)).slice(0,6);
  modal(`<h2>Substituir ${e.n}</h2><p class="muted">A troca será mantida até finalizar este treino.</p>${alts.map(a=>`<button class="option" data-rep="${a.id}"><b>${a.n}</b><span>${a.m}</span></button>`).join('')||'<p class="muted">Nenhuma alternativa disponível para este grupo.</p>'}`);
- $$('[data-rep]').forEach(b=>b.onclick=()=>{const w=ensureWorkout(),alt=LIB.find(x=>x.id===b.dataset.rep),i=w.plan.items.findIndex(x=>x.id===e.id);if(i<0||!alt)return;w.plan.items[i]={...alt,sets:e.sets,reps:e.reps,rest:e.rest};delete w.seriesProgress[e.id];w.completed=w.completed.filter(x=>x!==e.id);w.plan.title=[...new Set(w.plan.items.map(x=>x.cat))].join(' + ');state.activeRest=null;save();closeModal();exercise(alt.id)})
+ $$('[data-rep]').forEach(b=>b.onclick=()=>{const w=ensureWorkout(),alt=LIB.find(x=>x.id===b.dataset.rep),i=w.plan.items.findIndex(x=>x.id===e.id);if(i<0||!alt)return;w.plan.items[i]={...alt,...prescription(alt,scheme())};delete w.seriesProgress[e.id];w.completed=w.completed.filter(x=>x!==e.id);w.plan.title=[...new Set(w.plan.items.map(x=>x.cat))].join(' + ');state.activeRest=null;save();closeModal();exercise(alt.id)})
 }
 function showGuide(e){modal(`<h2>${e.n}</h2><div class="guideSteps"><b>1. Prepare</b><p>${e.cue}</p><b>2. Execute</b><p>Use amplitude confortável, respire naturalmente e mantenha controle nas duas fases do movimento.</p><b>3. Pare se necessário</b><p>Dor aguda, tontura, falta de ar incomum ou perda de controle são motivos para interromper e buscar orientação adequada.</p></div>`)}
 function finishWorkout(){
@@ -205,7 +246,7 @@ function saveAssessment(){['w','h','wa','ch','ar','th'].forEach(()=>{});state.we
 async function saveProgressPhoto(e){const f=e.target.files?.[0];if(!f)return;try{await idbPut('progressPhoto',{id:Date.now(),date:new Date().toISOString(),blob:f});toast('Foto de evolução salva somente neste aparelho.')}catch(err){toast('Não foi possível salvar a foto neste aparelho.')}}
 function idbPut(storeName,obj){return new Promise((res,rej)=>{let rq=indexedDB.open('musyfit-media',1);rq.onupgradeneeded=()=>{let db=rq.result;if(!db.objectStoreNames.contains(storeName))db.createObjectStore(storeName,{keyPath:'id'})};rq.onsuccess=()=>{let tx=rq.result.transaction(storeName,'readwrite');tx.objectStore(storeName).put(obj);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)};rq.onerror=()=>rej(rq.error)})}
 
-function profile(){shell(`<div class="row"><div><span class="kicker">PERFIL</span><h1>${esc(state.name)}</h1><p class="muted">${state.gender} • ${state.level}</p></div><div class="avatar bigav">${esc(state.name[0]||'M')}</div></div><section class="grid section"><div class="stat"><strong>${state.workouts}</strong><span>treinos</span></div><div class="stat"><strong>${state.streak}</strong><span>semanas</span></div></section><section class="section card settings"><label>Objetivo <b>${state.goal}</b></label><label>Local <b>${state.place}</b></label><label>Frequência <b>${state.days}x/semana</b></label><label>Descanso padrão <b>${state.restDefault}s</b></label><label class="switchline"><span>Resumo semanal</span><input id="notif" type="checkbox" ${state.weeklyNotifications?'checked':''}></label></section><section class="section card"><h2>Musy Coach AI</h2><p class="muted">Status: <b>${(state.apiUrl||window.MUSYFIT_AI_URL||'').trim()?'IA configurada':'Modo local'}</b>. A chave da IA nunca fica dentro do APK.</p><input class="input" id="api" placeholder="https://seu-backend.com/api/coach" value="${esc(state.apiUrl)}"><div class="grid sectionSmall"><button class="btn alt" id="saveApi">SALVAR SERVIDOR</button><button class="btn alt" id="testApi">TESTAR CONEXÃO</button></div></section><section class="section grid"><button class="btn alt" id="edit">EDITAR PERFIL</button><button class="btn alt" id="reset">RECOMEÇAR</button></section><p class="legal">Dados de treino ficam no aparelho. Fotos de evolução são armazenadas localmente no dispositivo.</p>`);$('#notif').onchange=e=>{state.weeklyNotifications=e.target.checked;save();if(state.weeklyNotifications)scheduleWeekly();else cancelWeekly()};$('#saveApi').onclick=()=>{state.apiUrl=$('#api').value.trim();save();toast('Servidor da IA salvo.')};$('#testApi').onclick=async()=>{const api=($('#api').value||window.MUSYFIT_AI_URL||'').trim();if(!api)return toast('Nenhum servidor de IA configurado.');toast('Testando conexão...');try{const r=await fetch(api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Responda apenas: conexão MusyFit OK',profile:{name:state.name}})});const j=await r.json();toast(r.ok?'IA online conectada.':`Servidor respondeu com erro.`)}catch(e){toast('Não foi possível conectar ao servidor da IA.')}};$('#edit').onclick=setupProfile;$('#reset').onclick=()=>{if(confirm('Apagar o perfil e reiniciar o MusyFit?')){['musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].forEach(k=>localStorage.removeItem(k));state=JSON.parse(JSON.stringify(defaults));onboarding()}}}
+function profile(){shell(`<div class="row"><div><span class="kicker">PERFIL</span><h1>${esc(state.name)}</h1><p class="muted">${state.gender} • ${state.level}</p></div><div class="avatar bigav">${esc(state.name[0]||'M')}</div></div><section class="grid section"><div class="stat"><strong>${state.workouts}</strong><span>treinos</span></div><div class="stat"><strong>${state.streak}</strong><span>semanas</span></div></section><section class="section card settings"><label>Objetivo <b>${state.goal}</b></label><label>Local <b>${state.place}</b></label><label>Frequência <b>${state.days}x/semana</b></label><label>Descanso padrão <b>${state.restDefault}s</b></label><label class="switchline"><span>Resumo semanal</span><input id="notif" type="checkbox" ${state.weeklyNotifications?'checked':''}></label></section><section class="section card"><h2>Musy Coach AI</h2><p class="muted">Status: <b>${(state.apiUrl||window.MUSYFIT_AI_URL||'').trim()?'IA configurada':'Modo local'}</b>. A chave da IA nunca fica dentro do APK.</p><input class="input" id="api" placeholder="https://seu-backend.com/api/coach" value="${esc(state.apiUrl)}"><div class="grid sectionSmall"><button class="btn alt" id="saveApi">SALVAR SERVIDOR</button><button class="btn alt" id="testApi">TESTAR CONEXÃO</button></div></section><section class="section grid"><button class="btn alt" id="edit">EDITAR PERFIL</button><button class="btn alt" id="reset">RECOMEÇAR</button></section><p class="legal">Dados de treino ficam no aparelho. Fotos de evolução são armazenadas localmente no dispositivo.</p>`);$('#notif').onchange=e=>{state.weeklyNotifications=e.target.checked;save();if(state.weeklyNotifications)scheduleWeekly();else cancelWeekly()};$('#saveApi').onclick=()=>{state.apiUrl=$('#api').value.trim();save();toast('Servidor da IA salvo.')};$('#testApi').onclick=async()=>{const api=($('#api').value||window.MUSYFIT_AI_URL||'').trim();if(!api)return toast('Nenhum servidor de IA configurado.');toast('Testando conexão...');try{const r=await fetch(api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Responda apenas: conexão MusyFit OK',profile:{name:state.name}})});const j=await r.json();toast(r.ok?'IA online conectada.':`Servidor respondeu com erro.`)}catch(e){toast('Não foi possível conectar ao servidor da IA.')}};$('#edit').onclick=setupProfile;$('#reset').onclick=()=>{if(confirm('Apagar o perfil e reiniciar o MusyFit?')){['musyfit.v6','musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].forEach(k=>localStorage.removeItem(k));state=JSON.parse(JSON.stringify(defaults));onboarding()}}}
 async function scheduleWeekly(){try{if(!window.Capacitor?.Plugins?.LocalNotifications)return;const p=Capacitor.Plugins.LocalNotifications;const perm=await p.requestPermissions();if(perm.display!=='granted')return;await p.cancel({notifications:[{id:7001}]});await p.schedule({notifications:[{id:7001,title:'Seu resumo MusyFit 💪',body:'Veja sua evolução da semana e prepare seu próximo treino.',schedule:{on:{weekday:1,hour:9,minute:0},repeats:true}}]})}catch(e){console.warn(e)}}
 async function cancelWeekly(){try{await Capacitor.Plugins.LocalNotifications.cancel({notifications:[{id:7001}]})}catch(e){}}
 function modal(html){let d=document.createElement('div');d.id='modal';d.className='modal';d.innerHTML=`<div class="modalbox"><button class="modalclose" id="modalClose">×</button>${html}</div>`;document.body.appendChild(d);$('#modalClose').onclick=closeModal;d.onclick=e=>{if(e.target===d)closeModal()}}

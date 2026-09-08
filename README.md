@@ -1,4 +1,4 @@
-# MusyFit V11.1 — Correção de inicialização
+# MusyFit V11.2 — Correção de inicialização
 
 Hotfix da V11 para evitar tela preta na abertura. Adiciona leitura segura de dados locais, migração protegida da V10/V11 e uma tela de erro visível caso o WebView encontre uma falha de inicialização. Mantém o Musy Coach conversacional e os recursos da V11.
 
@@ -20,3 +20,9 @@ A chave da OpenAI fica somente no backend. Configure `OPENAI_API_KEY` no ambient
 
 ## GitHub / APK
 O workflow está em `.github/workflows/build-apk.yml`. No GitHub, execute **Actions > Build MusyFit APK > Run workflow**.
+
+
+## Correção V11.2
+- Restaura navegação, tela inicial e personalização ausentes no pacote anterior.
+- Mantém o conteúdo, imagens e Musy Coach definidos na V11.
+- Inicialização protegida para evitar tela preta.

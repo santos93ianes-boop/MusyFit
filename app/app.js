@@ -1,5 +1,5 @@
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
-const STORAGE='musyfit.v11.1';
+const STORAGE='musyfit.v11.2';
 function bootFail(err){
   try{
     const root=document.getElementById('app');
@@ -7,23 +7,23 @@ function bootFail(err){
   }catch(_){}
   console.error('MusyFit startup error',err);
 }
-window.addEventListener('error',e=>bootFail(e.error||e.message));
+window.addEventListener('error',e=>{if(e&&(e.error||e.message))bootFail(e.error||e.message)});
 window.addEventListener('unhandledrejection',e=>bootFail(e.reason));
 function safeGet(key){try{return localStorage.getItem(key)}catch(_){return null}}
 function safeParse(raw,fallback={}){try{const v=JSON.parse(raw||'{}');return v&&typeof v==='object'?v:fallback}catch(_){return fallback}}
 const defaults={
-  version:11.1,onboard:false,name:'Atleta',gender:'Homem',age:30,level:'Iniciante',goal:'Ganhar massa',days:4,place:'Academia',minutesTarget:50,
+  version:11.2,onboard:false,name:'Atleta',gender:'Homem',age:30,level:'Iniciante',goal:'Ganhar massa',days:4,place:'Academia',minutesTarget:50,
   equipment:['Máquinas','Cabos','Halteres','Barra'],weight:75,height:175,waist:85,chest:95,arm:32,hip:95,thigh:55,
   workouts:0,records:0,totalMinutes:0,streak:0,tab:'home',weeklyNotifications:true,restDefault:90,
   history:[],assessments:[],completed:{},seriesProgress:{},loads:{},favorites:[],coachHistory:[],apiUrl:'',lastWorkoutDate:null,activeWorkout:null,activeRest:null,cycleStartWorkouts:0,cycleLength:4
 };
-let previousKey=['musyfit.v11.1','musyfit.v11','musyfit.v10','musyfit.v9','musyfit.v8','musyfit.v7','musyfit.v6','musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].find(k=>safeGet(k));
+let previousKey=['musyfit.v11.2','musyfit.v11.1','musyfit.v11','musyfit.v10','musyfit.v9','musyfit.v8','musyfit.v7','musyfit.v6','musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].find(k=>safeGet(k));
 let previous=previousKey?safeParse(safeGet(previousKey),{}):{};
 let state=Object.assign({},defaults,safeParse(safeGet(STORAGE),{}));
 if(!safeGet(STORAGE)&&previousKey){
- state=Object.assign({},defaults,previous,{version:11.1,place:'Academia',activeWorkout:null,activeRest:null,seriesProgress:{},completed:{},cycleStartWorkouts:Number(previous.workouts||0)});
+ state=Object.assign({},defaults,previous,{version:11.2,place:'Academia',activeWorkout:null,activeRest:null,seriesProgress:{},completed:{},cycleStartWorkouts:Number(previous.workouts||0)});
 }
-state.version=11.1;state.place='Academia';state.equipment=['Máquinas','Cabos','Halteres','Barra'];
+state.version=11.2;state.place='Academia';state.equipment=['Máquinas','Cabos','Halteres','Barra'];
 state.seriesProgress=(state.seriesProgress&&typeof state.seriesProgress==='object')?state.seriesProgress:{};
 state.history=Array.isArray(state.history)?state.history:[];
 state.assessments=Array.isArray(state.assessments)?state.assessments:[];
@@ -225,6 +225,21 @@ function anatomyFigure(stats={}){
  return `<img class="anatomyDetailed anatomyReal" src="assets/musy_progress_anatomy.webp" alt="Mapa anatômico Musy Progress — frente e costas">`;
 }
 
+function nav(){return `<nav class="nav">${[['home','⌂','Início'],['train','🏋','Treinos'],['coach','✦','Coach'],['progress','▥','Evolução'],['profile','♙','Perfil']].map(x=>`<button data-tab="${x[0]}" class="${state.tab===x[0]?'active':''}"><span>${x[1]}</span>${x[2]}</button>`).join('')}</nav>`}
+function shell(body){$('#app').innerHTML=`<main class="shell">${body}</main>${nav()}`;$$('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;save();render()})}
+function onboarding(){ $('#app').innerHTML=`<main class="shell welcome"><div class="logo">M<b>F</b></div><div class="brand big">MUSY<b>FIT</b></div><p class="sub">Seu parceiro em cada treino</p><div class="hero"><span class="kicker">PERSONAL TRAINER INTELIGENTE</span><h1>Treino que evolui com você.</h1><p class="muted">Planos personalizados, evolução, timer, avaliação corporal e Musy Coach.</p></div><button class="btn" id="start">COMEÇAR</button><p class="legal">Orientação fitness geral. Não substitui avaliação médica ou de profissional habilitado.</p></main>`; $('#start').onclick=setupProfile }
+function setupProfile(){
+ $('#app').innerHTML=`<main class="shell"><div class="brand">MUSY<b>FIT</b></div><section class="section"><h1>Vamos personalizar</h1><p class="muted">As escolhas abaixo ajustam volume, exercícios e descanso.</p>
+ <h2>Perfil</h2><div class="choice" id="gender">${['Homem','Mulher','60+'].map(v=>`<button class="${state.gender===v?'on':''}">${v}</button>`).join('')}</div>
+ <div class="form2"><label>Nome<input class="input" id="name" value="${esc(state.name==='Atleta'?'':state.name)}"></label><label>Idade<input class="input" id="age" type="number" min="14" max="100" value="${state.age}"></label></div>
+ <h2>Nível</h2><div>${['Iniciante','Intermediário','Avançado','Experiente'].map(v=>`<span class="pill ${state.level===v?'on':''}" data-level="${v}">${v}</span>`).join('')}</div>
+ <h2>Objetivo</h2><div>${['Ganhar massa','Emagrecer','Definição','Força','Condicionamento','Mobilidade'].map(v=>`<span class="pill ${state.goal===v?'on':''}" data-goal="${v}">${v}</span>`).join('')}</div>
+ <h2>Local de treino</h2><div><span class="pill on">Academia</span></div><p class="hint">MusyFit foi otimizado exclusivamente para treinos em academia, com ciclos e fichas por objetivo.</p>
+ <div class="form2"><label>Dias/semana<input class="input" id="days" type="number" min="2" max="7" value="${state.days}"></label><label>Min/treino<input class="input" id="mins" type="number" min="20" max="120" value="${state.minutesTarget}"></label></div>
+ <button class="btn" id="go">CRIAR MEU PLANO</button></section></main>`;
+ $$('#gender button').forEach(b=>b.onclick=()=>{state.gender=b.textContent;setupProfile()}); $$('[data-level]').forEach(b=>b.onclick=()=>{state.level=b.dataset.level;setupProfile()}); $$('[data-goal]').forEach(b=>b.onclick=()=>{state.goal=b.dataset.goal;setupProfile()});
+ $('#go').onclick=()=>{state.name=$('#name').value.trim()||'Atleta';state.age=+$('#age').value||30;state.days=Math.max(2,Math.min(7,+$('#days').value||4));state.minutesTarget=+$('#mins').value||50;state.place='Academia';state.onboard=true;save();scheduleWeekly();state.tab='home';render()}
+}
 function home(){const p=planFor(state.workouts);const week=state.history.filter(h=>Date.now()-new Date(h.date).getTime()<7*864e5).length; const progress=Math.min(100,Math.round((state.workouts/20)*100)); shell(`
  <header class="row"><div><div class="brand">MUSY<b>FIT</b></div><h1>Olá, ${esc(state.name)} 👋</h1><p class="muted">Seu plano está pronto para hoje.</p></div><button class="iconbtn" id="bell">🔔</button></header>
  <section class="hero workoutHero"><div class="row"><span class="kicker">TREINO DE HOJE</span><span class="badge">Ciclo ${cycleInfo().week}/${cycleInfo().length}</span></div><h1>${p.title}</h1><p>${p.mainCount} exercícios principais + aquecimento/finalização • ~${state.minutesTarget} min</p><div class="bar"><i style="width:${cycleInfo().week/cycleInfo().length*100}%"></i></div><button class="btn" id="begin">COMEÇAR TREINO ▶</button></section>

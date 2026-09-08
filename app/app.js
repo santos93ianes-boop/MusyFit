@@ -1,5 +1,6 @@
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
-const STORAGE='musyfit.v11.2';
+const STORAGE='musyfit.v11.2.2';
+const PROFILE_DRAFT='musyfit.profileDraft.v11.2.2';
 function bootFail(err){
   try{
     const root=document.getElementById('app');
@@ -12,18 +13,18 @@ window.addEventListener('unhandledrejection',e=>bootFail(e.reason));
 function safeGet(key){try{return localStorage.getItem(key)}catch(_){return null}}
 function safeParse(raw,fallback={}){try{const v=JSON.parse(raw||'{}');return v&&typeof v==='object'?v:fallback}catch(_){return fallback}}
 const defaults={
-  version:11.2,onboard:false,name:'Atleta',gender:'Homem',age:30,level:'Iniciante',goal:'Ganhar massa',days:4,place:'Academia',minutesTarget:50,
+  version:'11.2.2',onboard:false,name:'Atleta',gender:'Homem',age:30,level:'Iniciante',goal:'Ganhar massa',days:4,place:'Academia',minutesTarget:50,
   equipment:['Máquinas','Cabos','Halteres','Barra'],weight:75,height:175,waist:85,chest:95,arm:32,hip:95,thigh:55,
   workouts:0,records:0,totalMinutes:0,streak:0,tab:'home',weeklyNotifications:true,restDefault:90,
   history:[],assessments:[],completed:{},seriesProgress:{},loads:{},favorites:[],coachHistory:[],apiUrl:'',lastWorkoutDate:null,activeWorkout:null,activeRest:null,cycleStartWorkouts:0,cycleLength:4
 };
-let previousKey=['musyfit.v11.2','musyfit.v11.1','musyfit.v11','musyfit.v10','musyfit.v9','musyfit.v8','musyfit.v7','musyfit.v6','musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].find(k=>safeGet(k));
+let previousKey=['musyfit.v11.2.2','musyfit.v11.2','musyfit.v11.1','musyfit.v11','musyfit.v10','musyfit.v9','musyfit.v8','musyfit.v7','musyfit.v6','musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].find(k=>safeGet(k));
 let previous=previousKey?safeParse(safeGet(previousKey),{}):{};
 let state=Object.assign({},defaults,safeParse(safeGet(STORAGE),{}));
 if(!safeGet(STORAGE)&&previousKey){
- state=Object.assign({},defaults,previous,{version:11.2,place:'Academia',activeWorkout:null,activeRest:null,seriesProgress:{},completed:{},cycleStartWorkouts:Number(previous.workouts||0)});
+ state=Object.assign({},defaults,previous,{version:'11.2.2',place:'Academia',activeWorkout:null,activeRest:null,seriesProgress:{},completed:{},cycleStartWorkouts:Number(previous.workouts||0)});
 }
-state.version=11.2;state.place='Academia';state.equipment=['Máquinas','Cabos','Halteres','Barra'];
+state.version='11.2.2';state.place='Academia';state.equipment=['Máquinas','Cabos','Halteres','Barra'];
 state.seriesProgress=(state.seriesProgress&&typeof state.seriesProgress==='object')?state.seriesProgress:{};
 state.history=Array.isArray(state.history)?state.history:[];
 state.assessments=Array.isArray(state.assessments)?state.assessments:[];
@@ -229,17 +230,47 @@ function nav(){return `<nav class="nav">${[['home','⌂','Início'],['train','�
 function shell(body){$('#app').innerHTML=`<main class="shell">${body}</main>${nav()}`;$$('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;save();render()})}
 function onboarding(){ $('#app').innerHTML=`<main class="shell welcome"><div class="logo">M<b>F</b></div><div class="brand big">MUSY<b>FIT</b></div><p class="sub">Seu parceiro em cada treino</p><div class="hero"><span class="kicker">PERSONAL TRAINER INTELIGENTE</span><h1>Treino que evolui com você.</h1><p class="muted">Planos personalizados, evolução, timer, avaliação corporal e Musy Coach.</p></div><button class="btn" id="start">COMEÇAR</button><p class="legal">Orientação fitness geral. Não substitui avaliação médica ou de profissional habilitado.</p></main>`; $('#start').onclick=setupProfile }
 function setupProfile(){
- $('#app').innerHTML=`<main class="shell"><div class="brand">MUSY<b>FIT</b></div><section class="section"><h1>Vamos personalizar</h1><p class="muted">As escolhas abaixo ajustam volume, exercícios e descanso.</p>
- <h2>Perfil</h2><div class="choice" id="gender">${['Homem','Mulher','60+'].map(v=>`<button class="${state.gender===v?'on':''}">${v}</button>`).join('')}</div>
- <div class="form2"><label>Nome<input class="input" id="name" value="${esc(state.name==='Atleta'?'':state.name)}"></label><label>Idade<input class="input" id="age" type="number" min="14" max="100" value="${state.age}"></label></div>
- <h2>Nível</h2><div>${['Iniciante','Intermediário','Avançado','Experiente'].map(v=>`<span class="pill ${state.level===v?'on':''}" data-level="${v}">${v}</span>`).join('')}</div>
- <h2>Objetivo</h2><div>${['Ganhar massa','Emagrecer','Definição','Força','Condicionamento','Mobilidade'].map(v=>`<span class="pill ${state.goal===v?'on':''}" data-goal="${v}">${v}</span>`).join('')}</div>
+ // Rascunho independente: tudo que for digitado aqui é salvo imediatamente.
+ // Assim Nome, Idade, Dias e Minutos não somem nem se a tela for redesenhada
+ // pelo Android/WebView ou se o usuário voltar para editar o perfil.
+ let draft=safeParse(safeGet(PROFILE_DRAFT),{});
+ draft={
+   name: draft.name ?? (state.name==='Atleta'?'':state.name),
+   age: draft.age ?? state.age,
+   days: draft.days ?? state.days,
+   mins: draft.mins ?? state.minutesTarget,
+   gender: draft.gender ?? state.gender,
+   level: draft.level ?? state.level,
+   goal: draft.goal ?? state.goal
+ };
+ const saveDraft=()=>{try{localStorage.setItem(PROFILE_DRAFT,JSON.stringify(draft))}catch(e){console.warn('Falha ao salvar rascunho do perfil',e)}};
+ $('#app').innerHTML=`<main class="shell"><div class="brand">MUSY<b>FIT</b></div><section class="section"><h1>Vamos personalizar</h1><p class="muted">Preencha seus dados. Eles ficam salvos enquanto você monta o perfil.</p>
+ <h2>Perfil</h2><div class="choice" id="gender">${['Homem','Mulher','60+'].map(v=>`<button class="${draft.gender===v?'on':''}">${v}</button>`).join('')}</div>
+ <div class="form2"><label>Nome<input class="input" id="name" autocomplete="name" value="${esc(draft.name)}"></label><label>Idade<input class="input" id="age" inputmode="numeric" type="number" min="14" max="100" value="${esc(draft.age)}"></label></div>
+ <h2>Nível</h2><div>${['Iniciante','Intermediário','Avançado','Experiente'].map(v=>`<span class="pill ${draft.level===v?'on':''}" data-level="${v}">${v}</span>`).join('')}</div>
+ <h2>Objetivo</h2><div>${['Ganhar massa','Emagrecer','Definição','Força','Condicionamento','Mobilidade'].map(v=>`<span class="pill ${draft.goal===v?'on':''}" data-goal="${v}">${v}</span>`).join('')}</div>
  <h2>Local de treino</h2><div><span class="pill on">Academia</span></div><p class="hint">MusyFit foi otimizado exclusivamente para treinos em academia, com ciclos e fichas por objetivo.</p>
- <div class="form2"><label>Dias/semana<input class="input" id="days" type="number" min="2" max="7" value="${state.days}"></label><label>Min/treino<input class="input" id="mins" type="number" min="20" max="120" value="${state.minutesTarget}"></label></div>
+ <div class="form2"><label>Dias/semana<input class="input" id="days" inputmode="numeric" type="number" min="2" max="7" value="${esc(draft.days)}"></label><label>Min/treino<input class="input" id="mins" inputmode="numeric" type="number" min="20" max="120" value="${esc(draft.mins)}"></label></div>
+ <p class="hint" id="draftStatus">✓ Dados preservados automaticamente</p>
  <button class="btn" id="go">CRIAR MEU PLANO</button></section></main>`;
- $$('#gender button').forEach(b=>b.onclick=()=>{state.gender=b.textContent;setupProfile()}); $$('[data-level]').forEach(b=>b.onclick=()=>{state.level=b.dataset.level;setupProfile()}); $$('[data-goal]').forEach(b=>b.onclick=()=>{state.goal=b.dataset.goal;setupProfile()});
- $('#go').onclick=()=>{state.name=$('#name').value.trim()||'Atleta';state.age=+$('#age').value||30;state.days=Math.max(2,Math.min(7,+$('#days').value||4));state.minutesTarget=+$('#mins').value||50;state.place='Academia';state.onboard=true;save();scheduleWeekly();state.tab='home';render()}
+ const bindDraft=(id,key)=>{const el=$('#'+id); if(!el)return; const update=()=>{draft[key]=el.value;saveDraft()}; el.addEventListener('input',update);el.addEventListener('change',update);el.addEventListener('blur',update)};
+ bindDraft('name','name');bindDraft('age','age');bindDraft('days','days');bindDraft('mins','mins');
+ $$('#gender button').forEach(b=>b.onclick=()=>{draft.gender=b.textContent;state.gender=draft.gender;saveDraft();$$('#gender button').forEach(x=>x.classList.toggle('on',x===b))});
+ $$('[data-level]').forEach(b=>b.onclick=()=>{draft.level=b.dataset.level;state.level=draft.level;saveDraft();$$('[data-level]').forEach(x=>x.classList.toggle('on',x===b))});
+ $$('[data-goal]').forEach(b=>b.onclick=()=>{draft.goal=b.dataset.goal;state.goal=draft.goal;saveDraft();$$('[data-goal]').forEach(x=>x.classList.toggle('on',x===b))});
+ $('#go').onclick=()=>{
+   draft.name=$('#name').value;draft.age=$('#age').value;draft.days=$('#days').value;draft.mins=$('#mins').value;saveDraft();
+   state.name=String(draft.name||'').trim()||'Atleta';
+   state.age=Math.max(14,Math.min(100,Number(draft.age)||30));
+   state.days=Math.max(2,Math.min(7,Number(draft.days)||4));
+   state.minutesTarget=Math.max(20,Math.min(120,Number(draft.mins)||50));
+   state.gender=draft.gender||state.gender;state.level=draft.level||state.level;state.goal=draft.goal||state.goal;
+   state.place='Academia';state.onboard=true;save();
+   try{localStorage.removeItem(PROFILE_DRAFT)}catch(_){}
+   scheduleWeekly();state.tab='home';render();
+ }
 }
+
 function home(){const p=planFor(state.workouts);const week=state.history.filter(h=>Date.now()-new Date(h.date).getTime()<7*864e5).length; const progress=Math.min(100,Math.round((state.workouts/20)*100)); shell(`
  <header class="row"><div><div class="brand">MUSY<b>FIT</b></div><h1>Olá, ${esc(state.name)} 👋</h1><p class="muted">Seu plano está pronto para hoje.</p></div><button class="iconbtn" id="bell">🔔</button></header>
  <section class="hero workoutHero"><div class="row"><span class="kicker">TREINO DE HOJE</span><span class="badge">Ciclo ${cycleInfo().week}/${cycleInfo().length}</span></div><h1>${p.title}</h1><p>${p.mainCount} exercícios principais + aquecimento/finalização • ~${state.minutesTarget} min</p><div class="bar"><i style="width:${cycleInfo().week/cycleInfo().length*100}%"></i></div><button class="btn" id="begin">COMEÇAR TREINO ▶</button></section>

@@ -1,3 +1,9 @@
+# MusyFit V10 — Biblioteca Visual Realista
+
+Atualização baseada na V9, com imagens realistas integradas às telas de treino, detalhe e guia, além de Musy Progress anatômico e correção de safe-area Android.
+
+O projeto inclui `.github/workflows/build-apk.yml` para geração do APK via GitHub Actions.
+
 # MusyFit V9 — Exercícios ilustrados + Musy Progress anatômico
 
 Atualização completa baseada na V8.

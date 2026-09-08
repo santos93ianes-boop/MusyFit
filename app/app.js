@@ -197,56 +197,18 @@ function recalcStreak(){
  return streak;
 }
 
-// MusyFit V9 — ilustrações vetoriais funcionais em toda a biblioteca.
+// MusyFit V10 — ilustrações vetoriais funcionais em toda a biblioteca.
 // Cada exercício recebe uma figura própria por padrão de movimento/equipamento,
 // sem depender de internet ou arquivos externos.
 function exerciseArt(e,large=false){
- const id=e.id||'', cat=e.cat||'', w=large?620:190, h=large?360:145;
- let pose='press';
- if(/squat|hack|legpress|ext|flex|curl|rdl|hip|adductor|abductor|calf|mobilityhips/.test(id)) pose='legs';
- else if(/row|pull|face|reverse|tbar|onearm|straight/.test(id)) pose='pull';
- else if(/curl|hammer|preacher|pushdown|overtri|barpush/.test(id)) pose='arms';
- else if(/plank|crunch|abmachine|kneeraise|pallof/.test(id)) pose='core';
- else if(/treadmill|bike|elliptical/.test(id)) pose='cardio';
- else if(/mobility/.test(id)) pose='mobility';
- else if(/lateral|machinepress|ohp/.test(id)) pose='shoulder';
- const accent='#ff5b0a', skin='#d79a79', muscle='#e8ad8b', metal='#55636a', dark='#11181b';
- const machine = e.eq?.toLowerCase().includes('máq') || e.eq?.toLowerCase().includes('cab') ? `<rect x="38" y="22" width="10" height="102" rx="4" fill="${metal}"/><rect x="142" y="22" width="10" height="102" rx="4" fill="${metal}"/><path d="M43 28H147M43 118H147" stroke="#7b898f" stroke-width="5"/>` : '';
- const person=(cx=95,cy=77)=>{
-   if(pose==='legs') return `<circle cx="${cx}" cy="43" r="13" fill="${skin}"/><path d="M${cx-12} 58 Q${cx} 50 ${cx+12} 58 L${cx+16} 94 L${cx+2} 101 L${cx-3} 84 L${cx-14} 105 L${cx-30} 125" fill="none" stroke="${muscle}" stroke-width="14" stroke-linecap="round"/><path d="M${cx+2} 101 L${cx+24} 124" stroke="${muscle}" stroke-width="14" stroke-linecap="round"/><path d="M${cx-8} 66 L${cx-36} 82M${cx+8} 66 L${cx+34} 82" stroke="${muscle}" stroke-width="10" stroke-linecap="round"/>`;
-   if(pose==='pull') return `<circle cx="${cx}" cy="42" r="13" fill="${skin}"/><path d="M${cx} 56 L${cx} 97" stroke="${muscle}" stroke-width="19" stroke-linecap="round"/><path d="M${cx-7} 64 L${cx-43} 72 L${cx-59} 57M${cx+7} 64 L${cx+43} 72 L${cx+59} 57" stroke="${muscle}" stroke-width="10" fill="none" stroke-linecap="round"/><path d="M${cx-6} 96 L${cx-18} 128M${cx+6} 96 L${cx+18} 128" stroke="${muscle}" stroke-width="12" stroke-linecap="round"/>`;
-   if(pose==='arms') return `<circle cx="${cx}" cy="42" r="13" fill="${skin}"/><path d="M${cx} 56 L${cx} 98" stroke="${muscle}" stroke-width="19"/><path d="M${cx-8} 65 Q${cx-39} 72 ${cx-35} 96M${cx+8} 65 Q${cx+39} 72 ${cx+35} 96" stroke="${muscle}" stroke-width="11" fill="none" stroke-linecap="round"/><path d="M${cx-6} 98 L${cx-18} 129M${cx+6} 98 L${cx+18} 129" stroke="${muscle}" stroke-width="12"/>`;
-   if(pose==='core') return `<circle cx="${cx}" cy="41" r="13" fill="${skin}"/><path d="M${cx} 55 L${cx+6} 94" stroke="${muscle}" stroke-width="20"/><path d="M${cx-7} 63 L${cx-33} 88M${cx+7} 63 L${cx+30} 85" stroke="${muscle}" stroke-width="10"/><path d="M${cx+4} 94 L${cx-27} 118M${cx+5} 94 L${cx+36} 112" stroke="${muscle}" stroke-width="12"/>`;
-   if(pose==='cardio') return `<circle cx="${cx}" cy="40" r="13" fill="${skin}"/><path d="M${cx} 55 L${cx-4} 91" stroke="${muscle}" stroke-width="18"/><path d="M${cx-8} 64 L${cx-34} 83M${cx+7} 64 L${cx+31} 76" stroke="${muscle}" stroke-width="10"/><path d="M${cx-4} 91 L${cx-32} 123M${cx-2} 91 L${cx+25} 116" stroke="${muscle}" stroke-width="12"/><path d="M42 124H154" stroke="${accent}" stroke-width="5"/>`;
-   if(pose==='mobility') return `<circle cx="${cx}" cy="39" r="13" fill="${skin}"/><path d="M${cx} 53 L${cx} 95" stroke="${muscle}" stroke-width="18"/><path d="M${cx-7} 62 L${cx-46} 49M${cx+7} 62 L${cx+46} 49" stroke="${muscle}" stroke-width="10"/><path d="M${cx-5} 95 L${cx-31} 127M${cx+5} 95 L${cx+31} 127" stroke="${muscle}" stroke-width="12"/>`;
-   if(pose==='shoulder') return `<circle cx="${cx}" cy="43" r="13" fill="${skin}"/><path d="M${cx} 57 L${cx} 98" stroke="${muscle}" stroke-width="19"/><path d="M${cx-8} 64 L${cx-35} 55 L${cx-35} 27M${cx+8} 64 L${cx+35} 55 L${cx+35} 27" stroke="${muscle}" stroke-width="11" fill="none" stroke-linecap="round"/><path d="M${cx-6} 98 L${cx-18} 130M${cx+6} 98 L${cx+18} 130" stroke="${muscle}" stroke-width="12"/>`;
-   return `<circle cx="${cx}" cy="43" r="13" fill="${skin}"/><path d="M${cx} 57 L${cx} 98" stroke="${muscle}" stroke-width="19"/><path d="M${cx-8} 65 L${cx-43} 74M${cx+8} 65 L${cx+43} 74" stroke="${muscle}" stroke-width="11"/><path d="M${cx-6} 98 L${cx-18} 130M${cx+6} 98 L${cx+18} 130" stroke="${muscle}" stroke-width="12"/>`;
- };
- return `<svg class="exerciseArt ${large?'large':''}" viewBox="0 0 190 145" role="img" aria-label="Ilustração de ${esc(e.n)}"><defs><linearGradient id="g${esc(id)}" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1b252a"/><stop offset="1" stop-color="#080d0f"/></linearGradient></defs><rect width="190" height="145" rx="18" fill="url(#g${esc(id)})"/><ellipse cx="95" cy="132" rx="67" ry="7" fill="#0008"/>${machine}${person()}<circle cx="160" cy="24" r="14" fill="#ff5b0a22" stroke="${accent}"/><path d="M154 24h12M160 18v12" stroke="${accent}" stroke-width="2"/><text x="12" y="18" fill="#ff7b1b" font-size="9" font-weight="800">${esc(cat.toUpperCase())}</text></svg>`;
-}
-function anatomyFigure(stats={}){
- const pct=k=>Math.max(0,Math.min(100,Number(stats[k]||0)));
- const op=k=>(0.18+pct(k)/125).toFixed(2);
- const front=`<g transform="translate(10 8)"><circle cx="76" cy="25" r="18" class="anatBase"/><path class="anatBase" d="M61 46 Q76 39 91 46 L104 90 95 158 93 285 76 285 73 170 59 285 42 285 52 158 47 90Z"/><path class="anatBase" d="M50 58 L21 135 34 141 63 79M102 58 L131 135 118 141 89 79"/><ellipse class="anatMuscle" style="opacity:${op('Peito')}" cx="65" cy="76" rx="14" ry="12"/><ellipse class="anatMuscle" style="opacity:${op('Peito')}" cx="87" cy="76" rx="14" ry="12"/><ellipse class="anatMuscle" style="opacity:${op('Ombros')}" cx="50" cy="61" rx="10" ry="10"/><ellipse class="anatMuscle" style="opacity:${op('Ombros')}" cx="102" cy="61" rx="10" ry="10"/><rect class="anatMuscle" style="opacity:${op('Core')}" x="64" y="90" width="24" height="56" rx="10"/><path class="anatMuscle" style="opacity:${op('Braços')}" d="M43 67 L24 132 37 137 56 77Z M109 67 L128 132 115 137 96 77Z"/><path class="anatMuscle" style="opacity:${op('Pernas')}" d="M57 150 L44 275 66 275 75 166Z M95 150 L108 275 86 275 77 166Z"/><path class="fiber" d="M76 47V146M48 61L76 78 104 61M57 160L73 190M95 160L79 190"/></g>`;
- const back=`<g transform="translate(165 8)"><circle cx="76" cy="25" r="18" class="anatBase"/><path class="anatBase" d="M61 46 Q76 39 91 46 L104 90 95 158 93 285 76 285 73 170 59 285 42 285 52 158 47 90Z"/><path class="anatBase" d="M50 58 L21 135 34 141 63 79M102 58 L131 135 118 141 89 79"/><path class="anatMuscle" style="opacity:${op('Costas')}" d="M56 66 Q76 52 96 66 L91 123 Q76 139 61 123Z"/><ellipse class="anatMuscle" style="opacity:${op('Ombros')}" cx="50" cy="61" rx="10" ry="10"/><ellipse class="anatMuscle" style="opacity:${op('Ombros')}" cx="102" cy="61" rx="10" ry="10"/><path class="anatMuscle" style="opacity:${op('Braços')}" d="M43 67 L24 132 37 137 56 77Z M109 67 L128 132 115 137 96 77Z"/><path class="anatMuscle" style="opacity:${op('Pernas')}" d="M57 150 L44 275 66 275 75 166Z M95 150 L108 275 86 275 77 166Z"/><ellipse class="anatMuscle" style="opacity:${op('Pernas')}" cx="63" cy="151" rx="15" ry="18"/><ellipse class="anatMuscle" style="opacity:${op('Pernas')}" cx="89" cy="151" rx="15" ry="18"/><path class="fiber" d="M76 47V142M59 67Q76 95 93 67M57 162L73 190M95 162L79 190"/></g>`;
- return `<svg class="anatomyDetailed" viewBox="0 0 320 315" role="img" aria-label="Mapa anatômico frente e costas">${front}${back}<text x="86" y="309" class="anatLabel">FRENTE</text><text x="238" y="309" class="anatLabel">COSTAS</text></svg>`;
+ const src=`assets/exercises/${encodeURIComponent(e.id)}.webp`;
+ return `<img class="exerciseArt realExercise ${large?'large':''}" src="${src}" alt="${esc(e.n)} — posição inicial, execução final e músculos ativados" loading="lazy">`;
 }
 
-function nav(){return `<nav class="nav">${[['home','⌂','Início'],['train','🏋','Treinos'],['coach','✦','Coach'],['progress','▥','Evolução'],['profile','♙','Perfil']].map(x=>`<button data-tab="${x[0]}" class="${state.tab===x[0]?'active':''}"><span>${x[1]}</span>${x[2]}</button>`).join('')}</nav>`}
-function shell(body){$('#app').innerHTML=`<main class="shell">${body}</main>${nav()}`;$$('[data-tab]').forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;save();render()})}
-function onboarding(){ $('#app').innerHTML=`<main class="shell welcome"><div class="logo">M<b>F</b></div><div class="brand big">MUSY<b>FIT</b></div><p class="sub">Seu parceiro em cada treino</p><div class="hero"><span class="kicker">PERSONAL TRAINER INTELIGENTE</span><h1>Treino que evolui com você.</h1><p class="muted">Planos personalizados, evolução, timer, avaliação corporal e Musy Coach.</p></div><button class="btn" id="start">COMEÇAR</button><p class="legal">Orientação fitness geral. Não substitui avaliação médica ou de profissional habilitado.</p></main>`; $('#start').onclick=setupProfile }
-function setupProfile(){
- $('#app').innerHTML=`<main class="shell"><div class="brand">MUSY<b>FIT</b></div><section class="section"><h1>Vamos personalizar</h1><p class="muted">As escolhas abaixo ajustam volume, exercícios e descanso.</p>
- <h2>Perfil</h2><div class="choice" id="gender">${['Homem','Mulher','60+'].map(v=>`<button class="${state.gender===v?'on':''}">${v}</button>`).join('')}</div>
- <div class="form2"><label>Nome<input class="input" id="name" value="${esc(state.name==='Atleta'?'':state.name)}"></label><label>Idade<input class="input" id="age" type="number" min="14" max="100" value="${state.age}"></label></div>
- <h2>Nível</h2><div>${['Iniciante','Intermediário','Avançado','Experiente'].map(v=>`<span class="pill ${state.level===v?'on':''}" data-level="${v}">${v}</span>`).join('')}</div>
- <h2>Objetivo</h2><div>${['Ganhar massa','Emagrecer','Definição','Força','Condicionamento','Mobilidade'].map(v=>`<span class="pill ${state.goal===v?'on':''}" data-goal="${v}">${v}</span>`).join('')}</div>
- <h2>Local de treino</h2><div><span class="pill on">Academia</span></div><p class="hint">MusyFit V8 foi otimizado exclusivamente para treinos em academia, com ciclos e fichas por objetivo.</p>
- <div class="form2"><label>Dias/semana<input class="input" id="days" type="number" min="2" max="7" value="${state.days}"></label><label>Min/treino<input class="input" id="mins" type="number" min="20" max="120" value="${state.minutesTarget}"></label></div>
- <button class="btn" id="go">CRIAR MEU PLANO</button></section></main>`;
- $$('#gender button').forEach(b=>b.onclick=()=>{state.gender=b.textContent;setupProfile()}); $$('[data-level]').forEach(b=>b.onclick=()=>{state.level=b.dataset.level;setupProfile()}); $$('[data-goal]').forEach(b=>b.onclick=()=>{state.goal=b.dataset.goal;setupProfile()});
- $('#go').onclick=()=>{state.name=$('#name').value.trim()||'Atleta';state.age=+$('#age').value||30;state.days=Math.max(2,Math.min(7,+$('#days').value||4));state.minutesTarget=+$('#mins').value||50;state.place='Academia';state.onboard=true;save();scheduleWeekly();state.tab='home';render()}
+function anatomyFigure(stats={}){
+ return `<img class="anatomyDetailed anatomyReal" src="assets/musy_progress_anatomy.webp" alt="Mapa anatômico Musy Progress — frente e costas">`;
 }
+
 function home(){const p=planFor(state.workouts);const week=state.history.filter(h=>Date.now()-new Date(h.date).getTime()<7*864e5).length; const progress=Math.min(100,Math.round((state.workouts/20)*100)); shell(`
  <header class="row"><div><div class="brand">MUSY<b>FIT</b></div><h1>Olá, ${esc(state.name)} 👋</h1><p class="muted">Seu plano está pronto para hoje.</p></div><button class="iconbtn" id="bell">🔔</button></header>
  <section class="hero workoutHero"><div class="row"><span class="kicker">TREINO DE HOJE</span><span class="badge">Ciclo ${cycleInfo().week}/${cycleInfo().length}</span></div><h1>${p.title}</h1><p>${p.mainCount} exercícios principais + aquecimento/finalização • ~${state.minutesTarget} min</p><div class="bar"><i style="width:${cycleInfo().week/cycleInfo().length*100}%"></i></div><button class="btn" id="begin">COMEÇAR TREINO ▶</button></section>

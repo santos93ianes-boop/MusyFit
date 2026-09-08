@@ -24,3 +24,7 @@
 @media(max-width:430px){.shell{padding-top:max(50px,calc(env(safe-area-inset-top) + 22px));}.exThumb,.exThumb .realExercise{height:78px}.exerciseHeroV9 .realExercise{max-height:360px}}
 
 .coachContext{display:flex;flex-direction:column;gap:5px;margin:10px 0 14px;border-color:#4a2b1c;background:linear-gradient(145deg,#1b120e,#0f1619)}.coachContext small{color:var(--muted)}.coachAskBtn{background:linear-gradient(90deg,#ff4d00,#ff7f22);letter-spacing:.2px}.quickrow .pill{margin-right:6px}.chat .bubble{animation:coachIn .18s ease-out}@keyframes coachIn{from{opacity:.35;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+
+/* MusyFit V11.2 — classificação e orientação de IMC */
+.bmiCard{position:relative;overflow:hidden}.bmiCard:before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:#7f8c92}.bmiCard.good:before{background:#38e078}.bmiCard.attention:before{background:#ff9a2f}.bmiCard.high:before{background:#ff5b0a}.bmiTitle{align-items:flex-start}.bmiTitle h2{font-size:25px;margin:5px 0 0}.bmiValue{min-width:68px;text-align:center;border:1px solid #39474e;border-radius:16px;padding:10px 8px;font-size:25px;font-weight:950;color:var(--accent);background:#0b1012}.bmiCard p{color:#c4cdd1;line-height:1.5;margin:14px 0 0}.bmiNote{font-size:11px!important;color:var(--muted)!important;border-top:1px solid #202b30;padding-top:11px}.bmiCard.good .bmiValue{color:#38e078}.bmiCard.attention .bmiValue{color:#ffad45}

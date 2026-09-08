@@ -26,3 +26,11 @@ O workflow está em `.github/workflows/build-apk.yml`. No GitHub, execute **Acti
 - Restaura navegação, tela inicial e personalização ausentes no pacote anterior.
 - Mantém o conteúdo, imagens e Musy Coach definidos na V11.
 - Inicialização protegida para evitar tela preta.
+
+
+## Atualização V11.2 — IMC
+- Classificação automática do IMC na área Musy Progress.
+- Faixas: baixo peso, peso adequado, sobrepeso e obesidade graus I, II e III.
+- Orientação breve sobre perda de gordura, manutenção do peso ou ganho/preservação de massa muscular conforme a classificação.
+- Aviso específico para perfil 60+: o IMC deve ser interpretado junto com massa muscular, força e condição de saúde.
+- Aviso de que IMC é triagem e não substitui avaliação profissional.

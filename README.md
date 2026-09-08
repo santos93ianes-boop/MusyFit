@@ -1,3 +1,7 @@
+# MusyFit V11.1 — Correção de inicialização
+
+Hotfix da V11 para evitar tela preta na abertura. Adiciona leitura segura de dados locais, migração protegida da V10/V11 e uma tela de erro visível caso o WebView encontre uma falha de inicialização. Mantém o Musy Coach conversacional e os recursos da V11.
+
 # MusyFit V11 — Musy Coach Conversacional
 
 Atualização baseada na V10, preservando a biblioteca visual, treinos, progresso, timer, cargas, substituições e geração de APK pelo GitHub Actions.

@@ -1,20 +1,36 @@
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
-const STORAGE='musyfit.v11';
+const STORAGE='musyfit.v11.1';
+function bootFail(err){
+  try{
+    const root=document.getElementById('app');
+    if(root) root.innerHTML='<main style="min-height:100vh;background:#070b0d;color:#fff;padding:32px 20px;font-family:Arial,sans-serif"><div style="max-width:560px;margin:10vh auto;background:#11171b;border:1px solid #ff7a00;border-radius:20px;padding:24px"><div style="color:#ff8a1f;font-weight:800;letter-spacing:.08em">MUSYFIT</div><h1 style="font-size:24px">Não foi possível iniciar o aplicativo</h1><p style="color:#c5cbd0;line-height:1.5">Feche e abra novamente. Se continuar, toque em Limpar dados do app ou reinstale esta versão.</p><button onclick="location.reload()" style="width:100%;padding:14px;border:0;border-radius:12px;background:#ff7a00;color:#111;font-weight:800">TENTAR NOVAMENTE</button></div></main>';
+  }catch(_){}
+  console.error('MusyFit startup error',err);
+}
+window.addEventListener('error',e=>bootFail(e.error||e.message));
+window.addEventListener('unhandledrejection',e=>bootFail(e.reason));
+function safeGet(key){try{return localStorage.getItem(key)}catch(_){return null}}
+function safeParse(raw,fallback={}){try{const v=JSON.parse(raw||'{}');return v&&typeof v==='object'?v:fallback}catch(_){return fallback}}
 const defaults={
-  version:11,onboard:false,name:'Atleta',gender:'Homem',age:30,level:'Iniciante',goal:'Ganhar massa',days:4,place:'Academia',minutesTarget:50,
+  version:11.1,onboard:false,name:'Atleta',gender:'Homem',age:30,level:'Iniciante',goal:'Ganhar massa',days:4,place:'Academia',minutesTarget:50,
   equipment:['Máquinas','Cabos','Halteres','Barra'],weight:75,height:175,waist:85,chest:95,arm:32,hip:95,thigh:55,
   workouts:0,records:0,totalMinutes:0,streak:0,tab:'home',weeklyNotifications:true,restDefault:90,
   history:[],assessments:[],completed:{},seriesProgress:{},loads:{},favorites:[],coachHistory:[],apiUrl:'',lastWorkoutDate:null,activeWorkout:null,activeRest:null,cycleStartWorkouts:0,cycleLength:4
 };
-let previousKey=['musyfit.v10','musyfit.v9','musyfit.v8','musyfit.v7','musyfit.v6','musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].find(k=>localStorage.getItem(k));
-let previous=previousKey?JSON.parse(localStorage.getItem(previousKey)||'{}'):{};
-let state=Object.assign({},defaults,JSON.parse(localStorage.getItem(STORAGE)||'{}'));
-if(!localStorage.getItem(STORAGE)&&previousKey){
- state=Object.assign({},defaults,previous,{version:11,place:'Academia',activeWorkout:null,activeRest:null,seriesProgress:{},completed:{},cycleStartWorkouts:previous.workouts||0});
+let previousKey=['musyfit.v11.1','musyfit.v11','musyfit.v10','musyfit.v9','musyfit.v8','musyfit.v7','musyfit.v6','musyfit.v5','musyfit.v4','musyfit.v3','musyfit.v2','musyfit'].find(k=>safeGet(k));
+let previous=previousKey?safeParse(safeGet(previousKey),{}):{};
+let state=Object.assign({},defaults,safeParse(safeGet(STORAGE),{}));
+if(!safeGet(STORAGE)&&previousKey){
+ state=Object.assign({},defaults,previous,{version:11.1,place:'Academia',activeWorkout:null,activeRest:null,seriesProgress:{},completed:{},cycleStartWorkouts:Number(previous.workouts||0)});
 }
-state.version=11;state.place='Academia';state.equipment=['Máquinas','Cabos','Halteres','Barra'];
-state.seriesProgress=state.seriesProgress||{};
-const save=()=>localStorage.setItem(STORAGE,JSON.stringify(state));
+state.version=11.1;state.place='Academia';state.equipment=['Máquinas','Cabos','Halteres','Barra'];
+state.seriesProgress=(state.seriesProgress&&typeof state.seriesProgress==='object')?state.seriesProgress:{};
+state.history=Array.isArray(state.history)?state.history:[];
+state.assessments=Array.isArray(state.assessments)?state.assessments:[];
+state.favorites=Array.isArray(state.favorites)?state.favorites:[];
+state.coachHistory=Array.isArray(state.coachHistory)?state.coachHistory:[];
+state.loads=(state.loads&&typeof state.loads==='object')?state.loads:{};
+const save=()=>{try{localStorage.setItem(STORAGE,JSON.stringify(state))}catch(e){console.warn('Falha ao salvar dados locais',e)}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const today=()=>new Date().toISOString().slice(0,10);
 const fmtMin=n=>`${Math.floor(n/60)}h${String(n%60).padStart(2,'0')}`;
